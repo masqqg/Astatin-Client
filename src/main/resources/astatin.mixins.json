@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "dev.astatin.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "GameRendererMixin",
+    "LightTextureMixin",
+    "MinecraftMixin",
+    "MouseHandlerMixin",
+    "WindowMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "refmap": "astatin.refmap.json"
+}

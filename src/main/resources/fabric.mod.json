@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "astatin",
+  "version": "${version}",
+  "name": "Astatin Client",
+  "description": "Astatin — a visual and quality-of-life client. No cheats, only a cleaner way to play.",
+  "authors": [
+    "Astatin"
+  ],
+  "contact": {
+    "homepage": "https://github.com/masqqg/Astatin-Client"
+  },
+  "license": "MIT",
+  "icon": "assets/astatin/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.astatin.AstatinClient"
+    ]
+  },
+  "mixins": [
+    "astatin.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.17.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
