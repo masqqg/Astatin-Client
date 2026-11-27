@@ -6,3 +6,6 @@ out/
 .idea/
 *.iml
 .vscode/
+
+# built mod jar handed to the user
+artifacts/
