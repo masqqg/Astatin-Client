@@ -57,6 +57,10 @@ public final class Render2D {
         this.width = width;
         this.height = height;
         if (shaders.size() > 600) {
+            fill.setShader(null);
+            stroke.setShader(null);
+            textPaint.setShader(null);
+            imagePaint.setShader(null);
             for (Shader shader : shaders.values()) {
                 shader.close();
             }
@@ -74,6 +78,31 @@ public final class Render2D {
         stroke.setShader(null).setImageFilter(null).setAlpha(255);
         textPaint.setShader(null).setImageFilter(null).setAlpha(255);
         imagePaint.setShader(null).setImageFilter(null).setAlpha(255);
+    }
+
+    /**
+     * Releases every cached native object. Called when the surface that owns
+     * this renderer is replaced, otherwise each window resize would leak Skia
+     * memory until the driver runs out of it.
+     */
+    public void close() {
+        for (Shader shader : shaders.values()) {
+            shader.close();
+        }
+        shaders.clear();
+        for (ImageFilter filter : blurFilters.values()) {
+            filter.close();
+        }
+        blurFilters.clear();
+        for (Image image : images.values()) {
+            image.close();
+        }
+        images.clear();
+        measurements.clear();
+        fill.close();
+        stroke.close();
+        textPaint.close();
+        imagePaint.close();
     }
 
     public float width() {

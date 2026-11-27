@@ -42,10 +42,26 @@ public final class Fonts {
         if (loaded) {
             return;
         }
-        loaded = true;
+        // Only mark the cache as ready once every face parsed, so a failed load
+        // can be retried instead of leaving null typefaces behind.
         for (Weight weight : Weight.values()) {
-            TYPEFACES.put(weight, loadTypeface("/assets/astatin/fonts/" + weight.file));
+            Typeface typeface = loadTypeface("/assets/astatin/fonts/" + weight.file);
+            TYPEFACES.put(weight, typeface);
         }
+        loaded = true;
+    }
+
+    /** True only when every bundled face is usable. */
+    public static synchronized boolean available() {
+        if (!loaded) {
+            return false;
+        }
+        for (Weight weight : Weight.values()) {
+            if (TYPEFACES.get(weight) == null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static Typeface loadTypeface(String path) {
@@ -74,6 +90,11 @@ public final class Fonts {
         Typeface typeface = TYPEFACES.get(weight);
         if (typeface == null) {
             typeface = TYPEFACES.get(Weight.REGULAR);
+        }
+        if (typeface == null) {
+            // Skija or the bundled fonts are unavailable; never hand a null
+            // typeface to the native layer.
+            throw new IllegalStateException("Bundled interface font is not available");
         }
         Font font = new Font(typeface, size);
         font.setSubpixel(true);

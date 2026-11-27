@@ -8,6 +8,7 @@ import io.github.humbleui.skija.DirectContext;
 import io.github.humbleui.skija.Surface;
 import io.github.humbleui.skija.SurfaceOrigin;
 import org.lwjgl.BufferUtils;
+import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL12C;
 import org.lwjgl.opengl.GL13C;
@@ -46,6 +47,8 @@ public final class SkijaRenderer {
     private boolean disabled;
     private boolean active;
     private boolean canvasSaved;
+    /** GLFW handle of the GL context the cached Skia surface belongs to. */
+    private long glContext;
 
     private final IntBuffer intBuffer = BufferUtils.createIntBuffer(16);
     private final FloatBuffer floatBuffer = BufferUtils.createFloatBuffer(4);
@@ -87,6 +90,7 @@ public final class SkijaRenderer {
         active = true;
         canvasSaved = false;
         try {
+            ensureGlContext();
             saveState();
             ensureSurface(framebufferWidth, framebufferHeight);
             GL30C.glBindFramebuffer(GL30C.GL_FRAMEBUFFER, fbo);
@@ -131,6 +135,45 @@ public final class SkijaRenderer {
             active = false;
             restoreState();
         }
+    }
+
+    /**
+     * Minecraft can destroy and recreate the window's GL context (fullscreen
+     * toggles, renderer changes, driver resets). Every GL name and every Skia
+     * object we cached then points at a dead context, which used to crash the
+     * game. Detect the swap and rebuild from scratch instead.
+     */
+    private void ensureGlContext() {
+        long handle = GLFW.glfwGetCurrentContext();
+        if (handle == glContext) {
+            return;
+        }
+        if (glContext != 0L) {
+            LOGGER.info("GL context changed, rebuilding the Skija surface");
+            if (ui != null) {
+                ui.close();
+                ui = null;
+            }
+            surface = null;
+            target = null;
+            if (context != null) {
+                try {
+                    context.close();
+                } catch (Throwable ignored) {
+                    // The old context is gone; its native objects cannot be freed here.
+                }
+                context = null;
+            }
+            fbo = -1;
+            colorTexture = -1;
+            depthStencil = -1;
+            program = -1;
+            vao = -1;
+            vbo = -1;
+            width = 0;
+            height = 0;
+        }
+        glContext = handle;
     }
 
     private void ensureSurface(int w, int h) {
@@ -350,7 +393,34 @@ public final class SkijaRenderer {
         }
     }
 
+    /** Frees every native and GL object. Safe to call when the client stops. */
+    public void close() {
+        if (active) {
+            return;
+        }
+        try {
+            destroySurface();
+            if (context != null) {
+                context.close();
+                context = null;
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("Could not release the Skija renderer cleanly", t);
+        } finally {
+            glContext = 0L;
+            program = -1;
+            vao = -1;
+            vbo = -1;
+            width = 0;
+            height = 0;
+        }
+    }
+
     private void destroySurface() {
+        if (ui != null) {
+            ui.close();
+            ui = null;
+        }
         if (surface != null) {
             surface.close();
             surface = null;

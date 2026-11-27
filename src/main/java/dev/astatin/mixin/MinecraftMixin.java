@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class MinecraftMixin {
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void astatin$replaceTitle(Screen screen, CallbackInfo ci) {
-        if (screen instanceof TitleScreen && !(screen instanceof AstatinTitleScreen) && AstatinClient.ready()) {
+        if (screen instanceof TitleScreen && !(screen instanceof AstatinTitleScreen) && AstatinClient.uiAvailable()) {
             ci.cancel();
             Minecraft.getInstance().setScreen(new AstatinTitleScreen());
         }

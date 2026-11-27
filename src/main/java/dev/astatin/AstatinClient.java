@@ -74,7 +74,10 @@ public final class AstatinClient implements ClientModInitializer {
                 InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, category));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> persist());
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            persist();
+            RENDERER.close();
+        });
         reloadHudDefaults();
         ready = true;
         LOGGER.info("Astatin Client initialized");
@@ -96,19 +99,29 @@ public final class AstatinClient implements ClientModInitializer {
         }
         while (menuKey != null && menuKey.consumeClick()) {
             if (mc.screen == null) {
-                mc.setScreen(new AstatinClickGuiScreen());
+                if (uiAvailable()) {
+                    mc.setScreen(new AstatinClickGuiScreen());
+                }
             } else if (mc.screen instanceof AstatinClickGuiScreen || mc.screen instanceof HudEditorScreen) {
                 mc.setScreen(null);
             }
         }
         while (editorKey != null && editorKey.consumeClick()) {
-            if (mc.screen == null) {
+            if (mc.screen == null && uiAvailable()) {
                 mc.setScreen(new HudEditorScreen());
             }
         }
 
+        // If Skija or its natives failed, our screens would be invisible while
+        // still eating input. Give the player back the vanilla interface.
+        if (!uiAvailable() && (mc.screen instanceof AstatinClickGuiScreen
+                || mc.screen instanceof HudEditorScreen || mc.screen instanceof AstatinTitleScreen)) {
+            mc.setScreen(null);
+            return;
+        }
+
         // Covers a very early title screen created before the client initializer ran.
-        if (mc.screen instanceof TitleScreen && !(mc.screen instanceof AstatinTitleScreen)) {
+        if (uiAvailable() && mc.screen instanceof TitleScreen && !(mc.screen instanceof AstatinTitleScreen)) {
             mc.setScreen(new AstatinTitleScreen());
         }
 
@@ -167,6 +180,11 @@ public final class AstatinClient implements ClientModInitializer {
 
     public static boolean ready() {
         return ready && fontsLoaded;
+    }
+
+    /** True when the custom interface can actually be drawn. */
+    public static boolean uiAvailable() {
+        return ready() && !RENDERER.isDisabled();
     }
 
     public static ConfigData config() {
