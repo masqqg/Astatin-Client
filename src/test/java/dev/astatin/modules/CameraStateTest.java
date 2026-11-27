@@ -1,10 +1,31 @@
 package dev.astatin.modules;
 
 import org.junit.jupiter.api.Test;
+import net.minecraft.world.phys.AABB;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CameraStateTest {
+    @Test
+    void hidesPlayerUntilCameraLeavesExpandedBody() {
+        CameraState camera = new CameraState();
+        AABB player = new AABB(-0.3, 0, -0.3, 0.3, 1.8, 0.3);
+        camera.reset(0, 1.62, 0, 0, 0);
+        assertFalse(camera.outsidePlayer(1, player));
+        camera.reset(0, 0.1, 0, 0, 0);
+        assertFalse(camera.outsidePlayer(1, player));
+        camera.reset(0, 1.62, 0.79, 0, 0);
+        assertFalse(camera.outsidePlayer(1, player));
+        camera.reset(0, 1.62, 0.81, 0, 0);
+        assertTrue(camera.outsidePlayer(1, player));
+        camera.reset(0, 1.62, 0, 0, 0);
+        camera.move(1, 0, 0, 1);
+        assertFalse(camera.outsidePlayer(0.5f, player));
+        assertTrue(camera.outsidePlayer(1, player));
+    }
+
     @Test
     void movesRelativeToViewAndInterpolates() {
         CameraState camera = new CameraState();

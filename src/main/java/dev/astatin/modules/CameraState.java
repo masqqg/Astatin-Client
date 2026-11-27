@@ -1,5 +1,7 @@
 package dev.astatin.modules;
 
+import net.minecraft.world.phys.AABB;
+
 /** Mutable view position and direction, independent of the player's state. */
 public final class CameraState {
     private double x, y, z, previousX, previousY, previousZ;
@@ -39,6 +41,9 @@ public final class CameraState {
     public double x(float partialTick) { return previousX + (x - previousX) * partialTick; }
     public double y(float partialTick) { return previousY + (y - previousY) * partialTick; }
     public double z(float partialTick) { return previousZ + (z - previousZ) * partialTick; }
+    public boolean outsidePlayer(float partialTick, AABB playerBounds) {
+        return !playerBounds.inflate(0.5).contains(x(partialTick), y(partialTick), z(partialTick));
+    }
     public float yaw() { return yaw; }
     public float pitch() { return pitch; }
 }

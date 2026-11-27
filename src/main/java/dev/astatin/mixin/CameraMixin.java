@@ -42,7 +42,9 @@ public abstract class CameraMixin {
         CameraController camera = AstatinClient.camera();
         if (camera.freecam(Minecraft.getInstance())) {
             CameraState state = camera.state();
-            this.detached = true;
+            // Hide the player while the free camera intersects their body, then render them at a distance.
+            var playerBounds = entity.getBoundingBox().move(entity.getPosition(partialTick).subtract(entity.position()));
+            this.detached = state.outsidePlayer(partialTick, playerBounds);
             setRotation(state.yaw(), state.pitch());
             setPosition(state.x(partialTick), state.y(partialTick), state.z(partialTick));
         }
