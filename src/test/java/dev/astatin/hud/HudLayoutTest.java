@@ -98,4 +98,55 @@ class HudLayoutTest {
         hud.resize(element, -.5f, 854, 480);
         assertEquals(.65f, element.scale);
     }
+
+    @Test
+    void resetLayoutRestoresPositionsAndPersistsWithoutChangingEnabledFlags() {
+        for (float[] size : new float[][]{{320, 240}, {854, 480}}) {
+            ConfigData config = new ConfigData();
+            HudManager hud = new HudManager();
+            for (int i = 0; i < hud.elements().size(); i++) {
+                HudElement element = hud.elements().get(i);
+                boolean enabled = i % 2 == 0;
+                config.hud.add(new ConfigData.HudState(element.id, enabled, .8f, .9f, 1.4f));
+                config.enabled.put(element.id, enabled);
+            }
+            hud.ensureDefaults(size[0], size[1], config);
+            assertEquals(.8f, hud.get("watermark").normX);
+            assertEquals(1.4f, hud.get("watermark").scale);
+            hud.resetLayout(size[0], size[1], config);
+
+            HudManager defaults = new HudManager();
+            defaults.ensureDefaults(size[0], size[1], new ConfigData());
+            HudManager reloaded = new HudManager();
+            reloaded.ensureDefaults(size[0], size[1], config);
+            for (int i = 0; i < hud.elements().size(); i++) {
+                HudElement actual = hud.elements().get(i);
+                HudElement expected = defaults.get(actual.id);
+                HudElement restored = reloaded.get(actual.id);
+                boolean enabled = i % 2 == 0;
+                assertEquals(enabled, actual.enabled);
+                assertEquals(enabled, config.enabled.get(actual.id));
+                assertEquals(enabled, config.hud(actual.id).enabled);
+                assertEquals(expected.normX, actual.normX, .0001f);
+                assertEquals(expected.normY, actual.normY, .0001f);
+                assertEquals(expected.scale, actual.scale, .0001f);
+                assertEquals(actual.normX, restored.normX, .0001f);
+                assertEquals(actual.normY, restored.normY, .0001f);
+                assertEquals(actual.scale, restored.scale, .0001f);
+            }
+        }
+    }
+
+    @Test
+    void resetAndCloseButtonsRemainSeparateAndOnScreen() {
+        for (float[] size : new float[][]{{320, 240}, {480, 320}, {854, 240}, {854, 480}}) {
+            Frame reset = HudManager.editorReset(size[0], size[1]);
+            Frame close = HudManager.editorClose(size[0]);
+            assertTrue(reset.x() >= 0 && reset.right() <= size[0] && reset.bottom() <= size[1]);
+            assertTrue(close.x() >= 0 && close.right() <= size[0] && close.bottom() <= size[1]);
+            assertTrue(reset.right() < close.x() || close.right() < reset.x());
+            assertTrue(reset.contains(reset.centerX(), reset.centerY()));
+            assertFalse(close.contains(reset.centerX(), reset.centerY()));
+        }
+    }
 }

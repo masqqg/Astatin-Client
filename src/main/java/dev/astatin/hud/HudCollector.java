@@ -28,6 +28,9 @@ public final class HudCollector {
 
     public static void collect(Minecraft mc, HudData data, Modules modules) {
         modules.applyTo(data);
+        data.animations = modules.animations();
+        long frameTime = System.nanoTime();
+        data.updateFrameTime(frameTime);
         long now = System.currentTimeMillis();
 
         if (mc.player != null) {
@@ -47,12 +50,14 @@ public final class HudCollector {
 
         data.cpsLeft = CpsTracker.left();
         data.cpsRight = CpsTracker.right();
+        data.recordCps(frameTime / 1_000_000L);
         data.keys[0] = mc.options.keyUp.isDown();
         data.keys[1] = mc.options.keyLeft.isDown();
         data.keys[2] = mc.options.keyDown.isDown();
         data.keys[3] = mc.options.keyRight.isDown();
         data.keys[4] = mc.mouseHandler.isLeftPressed();
         data.keys[5] = mc.mouseHandler.isRightPressed();
+        data.keys[6] = mc.options.keyJump.isDown();
 
         if (now - lastSlow < 200L) {
             data.fps = lastFps;
@@ -75,7 +80,7 @@ public final class HudCollector {
             data.ping = 0;
             lastPing = 0;
             data.armor.clear();
-            data.potions.clear();
+            data.clearPotions();
         }
     }
 
@@ -104,19 +109,15 @@ public final class HudCollector {
     }
 
     private static void collectPotions(Minecraft mc, HudData data) {
-        data.potions.clear();
         List<MobEffectInstance> effects = new ArrayList<>(mc.player.getActiveEffects());
         effects.sort(Comparator.comparingInt(MobEffectInstance::getDuration).reversed());
-        for (MobEffectInstance effect : effects) {
-            if (data.potions.size() >= 4) {
-                break;
-            }
+        data.setPotions(effects, effect -> {
             int color = 0xFF000000 | (effect.getEffect().value().getColor() & 0xFFFFFF);
             int seconds = effect.getDuration() / 20;
             String name = effect.getEffect().value().getDisplayName().getString();
-            data.potions.add(new HudData.PotionInfo(name, roman(effect.getAmplifier() + 1), seconds,
-                    color, Math.min(1f, seconds / 180f)));
-        }
+            return new HudData.PotionInfo(name, roman(effect.getAmplifier() + 1), seconds,
+                    color, Math.min(1f, seconds / 180f));
+        });
     }
 
     private static String roman(int value) {

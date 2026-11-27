@@ -258,6 +258,13 @@ public final class HudManager {
         element.scale = compact ? state.scale : 1f;
     }
 
+    public void resetLayout(float screenWidth, float screenHeight, ConfigData config) {
+        for (HudElement element : elements) {
+            reset(element, screenWidth, screenHeight, config);
+        }
+        store(config);
+    }
+
     public void drawEditorChrome(Render2D r, float screenWidth, float screenHeight, float micros, int fps) {
         r.rect(0f, 0f, screenWidth, screenHeight, 0x6607080A);
         // dot grid
@@ -274,6 +281,7 @@ public final class HudManager {
             r.textTop("HUD Editor", 12f, 14f, Fonts.semibold(12f), Theme.TEXT);
             r.textTop("Drag to move · Drag handle to resize", 12f, screenHeight - 20f,
                     Fonts.medium(8f), Theme.TEXT_SOFT);
+            drawEditorReset(r, screenWidth, screenHeight);
             drawEditorClose(r, screenWidth);
             return;
         }
@@ -302,7 +310,23 @@ public final class HudManager {
         r.textCenterY("Right click to reset", x + 204f, y + panelH * 0.5f, Fonts.medium(8.5f), Theme.TEXT_SOFT);
         r.textCenterY("H to close", x + panelW - 16f - r.width("H to close", Fonts.medium(8.5f)),
                 y + panelH * 0.5f, Fonts.medium(8.5f), Theme.AMBER);
+        drawEditorReset(r, screenWidth, screenHeight);
         drawEditorClose(r, screenWidth);
+    }
+
+    public static Frame editorReset(float screenWidth, float screenHeight) {
+        float x = screenWidth < 480f || screenHeight < 320f ? Math.max(0f, screenWidth - 142f) : 12f;
+        return new Frame(x, 8f, 92f, 28f);
+    }
+
+    public static void drawEditorReset(Render2D r, float screenWidth, float screenHeight) {
+        Frame reset = editorReset(screenWidth, screenHeight);
+        r.roundRect(reset.x(), reset.y(), reset.right(), reset.bottom(), 7f, 0xCC17181B);
+        r.roundRectStroke(reset.x() + .5f, reset.y() + .5f, reset.right() - .5f,
+                reset.bottom() - .5f, 7f, 1f, Theme.accentSoft(.55f));
+        var font = Fonts.semibold(9f);
+        r.textCenterY("Reset layout", reset.centerX() - r.width("Reset layout", font) * .5f,
+                reset.centerY(), font, Theme.TEXT);
     }
 
     public static Frame editorClose(float screenWidth) {

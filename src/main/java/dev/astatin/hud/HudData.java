@@ -1,7 +1,9 @@
 package dev.astatin.hud;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Everything the HUD needs, with no Minecraft types. The game fills this in
@@ -23,10 +25,15 @@ public final class HudData {
     public int armorPoints = 17;
     public final List<ArmorPiece> armor = new ArrayList<>();
     public final List<PotionInfo> potions = new ArrayList<>();
+    private int totalPotions;
 
-    /** W, A, S, D, LMB, RMB. */
-    public final boolean[] keys = new boolean[6];
+    /** W, A, S, D, LMB, RMB, jump. */
+    public final boolean[] keys = new boolean[7];
     public final float[] cpsHistory = new float[14];
+    public boolean animations = true;
+    public float frameSeconds = 1f / 60f;
+    private long lastFrameNanos;
+    private long lastCpsSampleMillis = Long.MIN_VALUE;
 
     // display flags driven by module settings
     public boolean showFps = true;
@@ -36,6 +43,52 @@ public final class HudData {
     public boolean showDurability = true;
     public boolean showDuration = true;
     public boolean splitCps = true;
+
+    /** Keep at most four display rows while retaining the full number of effects. */
+    public <T> void setPotions(List<T> effects, Function<T, PotionInfo> convert) {
+        totalPotions = effects.size();
+        potions.clear();
+        for (int i = 0; i < Math.min(4, effects.size()); i++) {
+            potions.add(convert.apply(effects.get(i)));
+        }
+    }
+
+    public int totalPotions() {
+        // Preview and other callers can populate the public list directly.
+        return Math.max(totalPotions, potions.size());
+    }
+
+    public void clearPotions() {
+        totalPotions = 0;
+        potions.clear();
+    }
+
+    /** Record a new CPS sample every 200 ms; gaps remain empty instead of inventing activity. */
+    public void recordCps(long nowMillis) {
+        if (lastCpsSampleMillis == Long.MIN_VALUE || nowMillis < lastCpsSampleMillis) {
+            Arrays.fill(cpsHistory, 0f);
+            lastCpsSampleMillis = nowMillis;
+            cpsHistory[cpsHistory.length - 1] = Math.max(0, cpsLeft + cpsRight);
+            return;
+        }
+        long elapsed = nowMillis - lastCpsSampleMillis;
+        long intervals = elapsed / 200L;
+        if (intervals == 0) return;
+        int count = (int) Math.min(intervals, cpsHistory.length);
+        System.arraycopy(cpsHistory, count, cpsHistory, 0, cpsHistory.length - count);
+        Arrays.fill(cpsHistory, cpsHistory.length - count, cpsHistory.length, 0f);
+        cpsHistory[cpsHistory.length - 1] = Math.max(0, cpsLeft + cpsRight);
+        lastCpsSampleMillis = nowMillis - elapsed % 200L;
+    }
+
+    public void updateFrameTime(long nowNanos) {
+        if (lastFrameNanos != 0L && nowNanos >= lastFrameNanos) {
+            frameSeconds = Math.min(.05f, (nowNanos - lastFrameNanos) / 1_000_000_000f);
+        } else {
+            frameSeconds = 1f / 60f;
+        }
+        lastFrameNanos = nowNanos;
+    }
 
     public HudData sample() {
         armor.clear();
@@ -48,6 +101,7 @@ public final class HudData {
         potions.add(new PotionInfo("Speed", "II", 83, 0x7DE7FF, 0.78f));
         potions.add(new PotionInfo("Fire Resistance", "I", 152, 0xFFB347, 0.62f));
         potions.add(new PotionInfo("Night Vision", "I", 214, 0x8A7DFF, 0.44f));
+        totalPotions = potions.size();
 
         keys[0] = true;
         keys[1] = false;
@@ -55,6 +109,7 @@ public final class HudData {
         keys[3] = false;
         keys[4] = false;
         keys[5] = false;
+        keys[6] = false;
 
         for (int i = 0; i < cpsHistory.length; i++) {
             cpsHistory[i] = 0.3f + 0.7f * Math.abs((float) Math.sin(i * 0.9f));

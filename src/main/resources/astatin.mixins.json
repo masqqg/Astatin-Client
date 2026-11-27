@@ -4,7 +4,9 @@
   "package": "dev.astatin.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "CameraMixin",
     "GameRendererMixin",
+    "KeyboardInputMixin",
     "LightTextureMixin",
     "MinecraftMixin",
     "MouseHandlerMixin",

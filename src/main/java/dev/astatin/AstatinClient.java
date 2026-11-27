@@ -11,6 +11,7 @@ import dev.astatin.menu.HudEditorScreen;
 import dev.astatin.modules.Module;
 import dev.astatin.modules.Modules;
 import dev.astatin.modules.ZoomState;
+import dev.astatin.modules.CameraController;
 import dev.astatin.render.SkijaRenderer;
 import dev.astatin.render.PojavSkijaNative;
 import dev.astatin.theme.Fonts;
@@ -20,6 +21,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -34,6 +36,7 @@ public final class AstatinClient implements ClientModInitializer {
 
     private static final HudData HUD_DATA = new HudData();
     private static final ZoomState ZOOM = new ZoomState();
+    private static final CameraController CAMERA = new CameraController();
     private static final SkijaRenderer RENDERER = new SkijaRenderer();
 
     private static ConfigData config = new ConfigData();
@@ -42,6 +45,7 @@ public final class AstatinClient implements ClientModInitializer {
     private static KeyMapping menuKey;
     private static KeyMapping zoomKey;
     private static KeyMapping editorKey;
+    private static KeyMapping freecamKey;
     private static boolean ready;
     private static boolean fullbright;
     private static boolean dirty;
@@ -71,6 +75,10 @@ public final class AstatinClient implements ClientModInitializer {
                 InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, category));
         editorKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.astatin.hudeditor",
                 InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, category));
+        freecamKey = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.astatin.freecam",
+                InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, category));
+        CAMERA.setFreelookKey(KeyBindingHelper.registerKeyBinding(new KeyMapping("key.astatin.freelook",
+                InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, category)));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
@@ -82,6 +90,7 @@ public final class AstatinClient implements ClientModInitializer {
             LOGGER.info("Astatin Client initialized");
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> persist());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> CAMERA.disconnect());
     }
 
     private static void tick(Minecraft mc) {
@@ -104,6 +113,14 @@ public final class AstatinClient implements ClientModInitializer {
                 mc.setScreen(new HudEditorScreen());
             }
         }
+        while (freecamKey != null && freecamKey.consumeClick()) {
+            Module freecam = module("freecam");
+            if (freecam != null && mc.screen == null && mc.level != null && mc.player != null) {
+                modules.toggle(freecam);
+                markDirty();
+            }
+        }
+        CAMERA.tick(mc);
 
         // Covers a very early title screen created before the client initializer ran.
         if (ready() && mc.screen instanceof TitleScreen && !(mc.screen instanceof AstatinTitleScreen)) {
@@ -121,7 +138,7 @@ public final class AstatinClient implements ClientModInitializer {
         fullbright = fullbrightModule != null && fullbrightModule.enabled;
 
         Module sprint = module("sprint");
-        if (sprint != null && sprint.enabled && mc.player != null && mc.screen == null
+        if (!CAMERA.freecam() && sprint != null && sprint.enabled && mc.player != null && mc.screen == null
                 && mc.player.input.hasForwardImpulse() && !mc.player.isShiftKeyDown()) {
             mc.player.setSprinting(true);
         }
@@ -190,6 +207,8 @@ public final class AstatinClient implements ClientModInitializer {
     public static ZoomState zoom() {
         return ZOOM;
     }
+
+    public static CameraController camera() { return CAMERA; }
 
     public static SkijaRenderer renderer() {
         return RENDERER;

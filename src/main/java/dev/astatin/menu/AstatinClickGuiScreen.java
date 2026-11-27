@@ -56,11 +56,9 @@ public final class AstatinClickGuiScreen extends Screen {
         state.time += dt;
         MenuLayout layout = new MenuLayout(width, height);
         List<Module> visible = renderer.visible(state);
-        state.scroll = Math.max(0f, Math.min(state.scroll, layout.maxScroll(visible.size())));
-        if (layout.mobile && state.selected != null) {
-            state.settingsScroll = Math.max(0f, Math.min(state.settingsScroll,
-                    layout.settingsMaxScroll(state.selected, state.openPicker)));
-        }
+        float settingsMax = layout.mobile && state.selected != null
+                ? layout.settingsMaxScroll(state.selected, state.openPicker) : 0f;
+        state.updateScroll(dt, AstatinClient.modules().animations(), layout.maxScroll(visible.size()), settingsMax);
         renderer.update(state, width, height);
         renderer.render(r, state);
     }
@@ -108,10 +106,10 @@ public final class AstatinClickGuiScreen extends Screen {
                     state.category = category;
                     state.selected = null;
                     state.openPicker = null;
-                    state.settingsScroll = 0f;
+                    state.resetSettingsScroll();
                     state.search = "";
                     state.searchFocused = false;
-                    state.scroll = 0f;
+                    state.resetScroll();
                     return true;
                 }
             }
@@ -135,7 +133,7 @@ public final class AstatinClickGuiScreen extends Screen {
                     } else {
                         state.selected = module;
                         state.openPicker = null;
-                        state.settingsScroll = 0f;
+                        state.resetSettingsScroll();
                     }
                     return true;
                 }
@@ -221,7 +219,7 @@ public final class AstatinClickGuiScreen extends Screen {
         if (layout.inspectorClose().contains(event.x(), event.y())) {
             state.selected = null;
             state.openPicker = null;
-            state.settingsScroll = 0f;
+            state.resetSettingsScroll();
         } else if (layout.inspectorToggle().contains(event.x(), event.y())) {
             modules.toggle(module);
             AstatinClient.markDirty();
@@ -261,11 +259,11 @@ public final class AstatinClickGuiScreen extends Screen {
 
     private void scrollMobile(MenuLayout layout, float delta) {
         if (state.selected != null) {
-            state.settingsScroll = Math.max(0f, Math.min(state.settingsScroll + delta,
-                    layout.settingsMaxScroll(state.selected, state.openPicker)));
+            state.scrollBy(delta, layout.settingsMaxScroll(state.selected, state.openPicker), true,
+                    AstatinClient.modules().animations());
         } else {
-            state.scroll = Math.max(0f, Math.min(state.scroll + delta,
-                    layout.maxScroll(renderer.visible(state).size())));
+            state.scrollBy(delta, layout.maxScroll(renderer.visible(state).size()), false,
+                    AstatinClient.modules().animations());
         }
     }
 
@@ -347,8 +345,8 @@ public final class AstatinClickGuiScreen extends Screen {
         }
         if (layout.grid.contains(mouseX, mouseY)) {
             List<Module> visible = renderer.visible(state);
-            state.scroll = Math.max(0f, Math.min(state.scroll - (float) scrollY * 28f,
-                    layout.maxScroll(visible.size())));
+            state.scrollBy(-(float) scrollY * 28f, layout.maxScroll(visible.size()), false,
+                    AstatinClient.modules().animations());
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);

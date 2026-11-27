@@ -29,7 +29,7 @@ public final class PotionsElement extends HudElement {
 
         r.circle(11.5f, 14.5f, 2f, Theme.AMBER);
         r.textTracked("EFFECTS", 17f, 17f, Fonts.medium(6.5f), Theme.TEXT_MUTED, 0.9f);
-        r.textRight(String.valueOf(data.potions.size()), w - 11f, 18.5f, Fonts.semibold(10f), Theme.TEXT_SOFT);
+        r.textRight(countLabel(data), w - 11f, 18.5f, Fonts.semibold(10f), Theme.TEXT_SOFT);
 
         if (data.potions.isEmpty()) {
             r.textCenterY("No active effects", 16f, 47f, Fonts.regular(9f), Theme.TEXT_MUTED);
@@ -59,6 +59,11 @@ public final class PotionsElement extends HudElement {
                     0x20FFFFFF, Theme.withAlpha(effect.color, 0.8f));
             y += 24f;
         }
+    }
+
+    static String countLabel(HudData data) {
+        int count = data.totalPotions();
+        return count > 4 ? Math.min(4, data.potions.size()) + "/" + count : String.valueOf(count);
     }
 
     private String trim(Render2D r, String value, io.github.humbleui.skija.Font font, float maxWidth) {

@@ -93,6 +93,8 @@ public final class MenuRenderer {
         for (Category category : Category.values()) {
             Frame frame = layout.category(category.ordinal());
             anim("cat." + category.ordinal()).target(frame.contains(state.mouseX, state.mouseY) ? 1f : 0f);
+            anim("cat.active." + category.ordinal()).target(
+                    state.category == category && state.search.isBlank() ? 1f : 0f);
         }
         for (int i = 0; i < visible.size(); i++) {
             Module module = visible.get(i);
@@ -133,7 +135,12 @@ public final class MenuRenderer {
             return;
         }
         if (layout.mobile) {
+            if (progress < .999f) {
+                layerPaint.setAlphaf(Math.max(0f, Math.min(1f, progress)));
+                r.canvas().saveLayer(Rect.makeLTRB(0f, 0f, w, h), layerPaint);
+            }
             drawMobile(r, state, layout, visible);
+            if (progress < .999f) r.canvas().restore();
             return;
         }
         layerPaint.setAlphaf(Math.min(1f, progress));
@@ -171,13 +178,13 @@ public final class MenuRenderer {
         if (state.selected == null) {
             for (Category category : Category.values()) {
                 Frame frame = layout.category(category.ordinal());
-                boolean active = category == state.category && state.search.isBlank();
+                float active = anim("cat.active." + category.ordinal()).get();
                 r.roundRect(frame.x(), frame.y(), frame.right(), frame.bottom(), 7f,
-                        active ? Theme.accentSoft(0.22f) : 0x10FFFFFF);
+                        Theme.mix(0x10FFFFFF, Theme.accentSoft(0.22f), active));
                 var font = Fonts.medium(9f);
                 String label = trim(r, category.label, font, frame.w() - 8f);
                 r.textCenterY(label, frame.centerX() - r.width(label, font) * 0.5f, frame.centerY(), font,
-                        active ? Theme.TEXT : Theme.TEXT_DIM);
+                        Theme.mix(Theme.TEXT_DIM, Theme.TEXT, active));
             }
             r.save();
             r.clipRect(layout.grid.x(), layout.grid.y(), layout.grid.right(), layout.grid.bottom());
@@ -203,7 +210,11 @@ public final class MenuRenderer {
     }
 
     private void drawMobileCard(Render2D r, MenuLayout layout, Module module, Frame card) {
-        r.roundRect(card.x(), card.y(), card.right(), card.bottom(), 8f, 0x18FFFFFF);
+        float hover = anim("card." + module.id).get();
+        r.roundRect(card.x(), card.y(), card.right(), card.bottom(), 8f,
+                Theme.mix(0x18FFFFFF, Theme.accentSoft(.16f), hover));
+        r.roundRectStroke(card.x() + .5f, card.y() + .5f, card.right() - .5f, card.bottom() - .5f,
+                8f, 1f, Theme.mix(0x10FFFFFF, Theme.accentSoft(.4f), hover));
         Icons.draw(r, iconFor(module), card.x() + 21f, card.centerY(), 14f,
                 module.enabled ? Theme.AMBER : Theme.TEXT_DIM);
         var font = Fonts.semibold(10f);
@@ -250,13 +261,14 @@ public final class MenuRenderer {
         r.radialGlow(w * 0.5f, h * 0.5f, Math.max(w, h) * 0.72f, 0x00000000, 0x6B000000);
 
         // A handful of slow amber sparks. Deterministic, so the scene is stable.
+        float time = animations() ? state.time : 0f;
         for (int i = 0; i < 16; i++) {
             float seed = i * 78.233f;
             float baseX = (float) ((Math.sin(seed) * 0.5f + 0.5f) * w);
             float speed = 6f + (i % 5) * 3f;
-            float y = h - ((state.time * speed + i * 61f) % (h + 80f)) + 40f;
-            float x = baseX + (float) Math.sin(state.time * 0.35f + i) * 10f;
-            float alpha = 0.1f + 0.18f * (float) Math.abs(Math.sin(state.time * 0.9f + i));
+            float y = h - ((time * speed + i * 61f) % (h + 80f)) + 40f;
+            float x = baseX + (float) Math.sin(time * 0.35f + i) * 10f;
+            float alpha = 0.1f + 0.18f * (float) Math.abs(Math.sin(time * 0.9f + i));
             float size = i % 4 == 0 ? 1.6f : 1f;
             r.circle(x, y, size, Theme.accentSoft(alpha));
         }

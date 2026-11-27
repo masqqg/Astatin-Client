@@ -51,6 +51,11 @@ public final class Modules {
         add(new Module("vignette", "Vignette", "A soft cinematic darkening around the edges of the screen.",
                 Category.VISUALS, false, false))
                 .add(Setting.slider("strength", "Strength", 0.22f, 0f, 0.5f, 0.02f, ""));
+        add(new Module("freecam", "Freecam", "Detach the camera; press V to toggle and use movement keys to fly.",
+                Category.VISUALS, false, false))
+                .add(Setting.slider("speed", "Camera speed", 0.25f, 0.05f, 1f, 0.05f, ""));
+        add(new Module("freelook", "Freelook", "Hold left Alt to look around independently of your player.",
+                Category.VISUALS, true, false));
 
         add(new Module("clickgui", "ClickGUI", "Accent, glass and motion for the client menus.",
                 Category.INTERFACE, true, false))
@@ -160,6 +165,8 @@ public final class Modules {
                 }
             }
         }
+        // Never restore a detached camera from a previous session.
+        get("freecam").enabled = false;
         Module gui = get("clickgui");
         if (gui != null) {
             Theme.setAccent(gui.color("accent", Theme.AMBER));

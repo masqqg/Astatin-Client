@@ -37,5 +37,15 @@ public final class CpsElement extends HudElement {
         } else {
             r.textRight(String.valueOf(data.cpsLeft + data.cpsRight), 90f, 40f, Fonts.medium(8f), Theme.TEXT_MUTED);
         }
+
+        float peak = 5f;
+        for (float value : data.cpsHistory) peak = Math.max(peak, value);
+        for (int i = 0; i < data.cpsHistory.length; i++) {
+            float x = 10f + i * 3.1f;
+            float barHeight = 5f * Math.max(0f, data.cpsHistory[i]) / peak;
+            if (barHeight > 0f) {
+                r.roundRect(x, 48f - barHeight, x + 2f, 48f, 1f, Theme.accentSoft(.7f));
+            }
+        }
     }
 }

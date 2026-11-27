@@ -3,7 +3,7 @@
   "id": "astatin",
   "version": "${version}",
   "name": "Astatin Client",
-  "description": "Astatin — a visual and quality-of-life client. No cheats, only a cleaner way to play.",
+  "description": "Astatin — a visual and quality-of-life client with configurable camera features.",
   "authors": [
     "Astatin"
   ],

@@ -2,6 +2,8 @@
   "key.astatin.menu": "Open Astatin Menu",
   "key.astatin.zoom": "Zoom",
   "key.astatin.hudeditor": "HUD Editor",
+  "key.astatin.freecam": "Toggle Freecam",
+  "key.astatin.freelook": "Hold Freelook",
   "key.categories.astatin.main": "Astatin Client",
   "key.categories.astatin": "Astatin Client"
 }

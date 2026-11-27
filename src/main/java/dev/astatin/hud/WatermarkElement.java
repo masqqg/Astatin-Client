@@ -43,7 +43,8 @@ public final class WatermarkElement extends HudElement {
         float cursor = 130f;
         if (data.showFps) {
             r.textTracked("FPS", cursor, 16f, Fonts.medium(6.5f), Theme.TEXT_MUTED, 0.8f);
-            r.textTop(String.valueOf(data.fps), cursor, 19f, Fonts.semibold(14f), Theme.AMBER);
+            int fpsColor = data.fps >= 60 ? Theme.GREEN : data.fps >= 30 ? Theme.AMBER : Theme.RED;
+            r.textTop(String.valueOf(data.fps), cursor, 19f, Fonts.semibold(14f), fpsColor);
             cursor += 42f;
         }
         if (data.showPing) {
@@ -51,7 +52,9 @@ public final class WatermarkElement extends HudElement {
                 r.line(cursor - 9f, 12f, cursor - 9f, h - 12f, 1f, 0x10FFFFFF);
             }
             r.textTracked("PING", cursor + 1f, 16f, Fonts.medium(6.5f), Theme.TEXT_MUTED, 0.8f);
-            r.textTop(data.ping + " ms", cursor + 1f, 19f, Fonts.semibold(13f), Theme.TEXT);
+            int pingColor = data.ping <= 0 ? Theme.TEXT : data.ping < 80 ? Theme.GREEN
+                    : data.ping < 160 ? Theme.AMBER : Theme.RED;
+            r.textTop(data.ping + " ms", cursor + 1f, 19f, Fonts.semibold(13f), pingColor);
         }
     }
 }
