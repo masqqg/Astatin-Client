@@ -47,6 +47,7 @@ public final class AstatinClient implements ClientModInitializer {
     private static int dirtyTicks;
     private static float hudMicros;
     private static boolean fontsLoaded;
+    private static boolean hudSized;
 
     @Override
     public void onInitializeClient() {
@@ -60,7 +61,10 @@ public final class AstatinClient implements ClientModInitializer {
 
         config = ConfigManager.load();
         hud = new HudManager();
-        hud.ensureDefaults(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), config);
+        // Minecraft builds its window *after* client entrypoints run (1.21.11),
+        // so getWindow() is still null here. Lay the HUD out on the first tick
+        // instead of dereferencing it during startup.
+        ensureHudLayout(mc);
         modules = new Modules(hud);
         modules.applyConfig(config);
 
@@ -85,17 +89,39 @@ public final class AstatinClient implements ClientModInitializer {
 
     private static void reloadHudDefaults() {
         Minecraft mc = Minecraft.getInstance();
-        if (hud != null) {
-            hud.ensureDefaults(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), config);
-        }
-        if (modules != null) {
+        ensureHudLayout(mc);
+        if (hudSized && modules != null) {
             modules.applyConfig(config);
         }
+    }
+
+    /**
+     * Seeds the default HUD layout once a real window exists. Safe to call any
+     * number of times before that; it simply does nothing.
+     */
+    private static void ensureHudLayout(Minecraft mc) {
+        if (hudSized || hud == null || mc == null) {
+            return;
+        }
+        com.mojang.blaze3d.platform.Window window = mc.getWindow();
+        if (window == null) {
+            return;
+        }
+        int width = window.getGuiScaledWidth();
+        int height = window.getGuiScaledHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        hudSized = true;
+        hud.ensureDefaults(width, height, config);
     }
 
     private static void tick(Minecraft mc) {
         if (!ready) {
             return;
+        }
+        if (!hudSized) {
+            ensureHudLayout(mc);
         }
         while (menuKey != null && menuKey.consumeClick()) {
             if (mc.screen == null) {

@@ -211,7 +211,10 @@ public final class SkijaRenderer {
             throw new IllegalStateException("Incomplete Skija framebuffer: 0x" + Integer.toHexString(status));
         }
 
-        target = BackendRenderTarget.makeGL(w, h, 0, 8, fbo, colorTexture);
+        // The last argument is the FBO's GL internal format, not the texture
+        // name: passing the texture id here makes Skia reject the target and
+        // the whole overlay silently disables itself.
+        target = BackendRenderTarget.makeGL(w, h, 0, 8, fbo, GL11C.GL_RGBA8);
         surface = Surface.wrapBackendRenderTarget(context, target, SurfaceOrigin.BOTTOM_LEFT,
                 ColorType.RGBA_8888, ColorSpace.getSRGB());
         ui = new Render2D(surface.getCanvas());
