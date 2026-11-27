@@ -98,6 +98,8 @@ public final class SkijaRenderer {
             GL30C.glDisable(GL30C.GL_FRAMEBUFFER_SRGB);
             GL11C.glClearColor(0f, 0f, 0f, 0f);
             GL11C.glClear(GL11C.GL_COLOR_BUFFER_BIT | GL11C.GL_STENCIL_BUFFER_BIT);
+            // Minecraft and the compositor modify GL state between Skija frames.
+            context.resetGLAll();
             surface.getCanvas().save();
             canvasSaved = true;
             surface.getCanvas().scale(guiScale, guiScale);
@@ -168,7 +170,7 @@ public final class SkijaRenderer {
             throw new IllegalStateException("Incomplete Skija framebuffer: 0x" + Integer.toHexString(status));
         }
 
-        target = BackendRenderTarget.makeGL(w, h, 0, 8, fbo, colorTexture);
+        target = BackendRenderTarget.makeGL(w, h, 0, 8, fbo, GL11C.GL_RGBA8);
         surface = Surface.wrapBackendRenderTarget(context, target, SurfaceOrigin.BOTTOM_LEFT,
                 ColorType.RGBA_8888, ColorSpace.getSRGB());
         ui = new Render2D(surface.getCanvas());

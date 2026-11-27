@@ -50,7 +50,6 @@ public final class AstatinClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        Minecraft mc = Minecraft.getInstance();
         try {
             Fonts.load();
             fontsLoaded = true;
@@ -59,10 +58,6 @@ public final class AstatinClient implements ClientModInitializer {
         }
 
         config = ConfigManager.load();
-        hud = new HudManager();
-        hud.ensureDefaults(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), config);
-        modules = new Modules(hud);
-        modules.applyConfig(config);
 
         KeyMapping.Category category = KeyMapping.Category.register(
                 Identifier.fromNamespaceAndPath(MOD_ID, "main"));
@@ -74,20 +69,15 @@ public final class AstatinClient implements ClientModInitializer {
                 InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, category));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
-        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> persist());
-        reloadHudDefaults();
-        ready = true;
-        LOGGER.info("Astatin Client initialized");
-    }
-
-    private static void reloadHudDefaults() {
-        Minecraft mc = Minecraft.getInstance();
-        if (hud != null) {
-            hud.ensureDefaults(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), config);
-        }
-        if (modules != null) {
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            hud = new HudManager();
+            hud.ensureDefaults(client.getWindow().getGuiScaledWidth(), client.getWindow().getGuiScaledHeight(), config);
+            modules = new Modules(hud);
             modules.applyConfig(config);
-        }
+            ready = true;
+            LOGGER.info("Astatin Client initialized");
+        });
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> persist());
     }
 
     private static void tick(Minecraft mc) {
