@@ -13,6 +13,13 @@ repositories {
     mavenCentral()
 }
 
+def skijaPlatforms = ['windows-x64', 'windows-arm64', 'linux-x64', 'linux-arm64', 'macos-x64', 'macos-arm64']
+def selectedSkijaPlatform = providers.gradleProperty('skijaPlatform').orNull
+if (selectedSkijaPlatform != null && !skijaPlatforms.contains(selectedSkijaPlatform)) {
+    throw new GradleException("Unknown skijaPlatform '${selectedSkijaPlatform}'. Choose one of: ${skijaPlatforms.join(', ')}")
+}
+def includedSkijaPlatforms = selectedSkijaPlatform == null ? skijaPlatforms : [selectedSkijaPlatform]
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings loom.officialMojangMappings()
@@ -20,13 +27,13 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Skija is bundled (jar-in-jar). The platform artifacts only ship the native
-    // libraries; the Java API lives in skija-shared. Windows is shipped in the mod,
-    // the Linux artifact is only used by the offline preview harness.
+    // Bundle Skija's Java API and the native libraries for each supported desktop platform.
+    // Include the natives on the development runtime classpath as well.
     implementation include("io.github.humbleui:skija-shared:${project.skija_version}")
     implementation include("io.github.humbleui:types:0.2.0")
-    include("io.github.humbleui:skija-windows-x64:${project.skija_version}")
-    runtimeOnly "io.github.humbleui:skija-linux-x64:${project.skija_version}"
+    includedSkijaPlatforms.each { platform ->
+        runtimeOnly include("io.github.humbleui:skija-${platform}:${project.skija_version}")
+    }
 }
 
 java {

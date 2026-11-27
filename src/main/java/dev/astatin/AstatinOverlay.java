@@ -18,13 +18,17 @@ import org.slf4j.LoggerFactory;
 
 public final class AstatinOverlay {
     private static final Logger LOGGER = LoggerFactory.getLogger("astatin/overlay");
-    private static boolean errorLogged;
 
     private AstatinOverlay() {
     }
 
     public static void render() {
-        if (!AstatinClient.ready() || !RenderSystem.isOnRenderThread()) {
+        if (!RenderSystem.isOnRenderThread()) {
+            return;
+        }
+        float dt = FrameClock.delta();
+        AstatinClient.zoom().update(dt);
+        if (!AstatinClient.ready()) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -47,12 +51,13 @@ public final class AstatinOverlay {
 
         SkijaRenderer renderer = AstatinClient.renderer();
         if (!renderer.begin(framebufferWidth, framebufferHeight, guiScale, guiWidth, guiHeight)) {
+            if (renderer.isDisabled()) {
+                AstatinClient.disableInterface();
+            }
             return;
         }
         try {
             Render2D r = renderer.ui();
-            float dt = FrameClock.delta();
-            AstatinClient.zoom().update(dt);
 
             boolean inGame = mc.level != null && mc.player != null;
             if (screen instanceof AstatinClickGuiScreen gui) {
@@ -77,12 +82,14 @@ public final class AstatinOverlay {
                 drawGameHud(mc, r, guiWidth, guiHeight);
             }
         } catch (Throwable t) {
-            if (!errorLogged) {
-                errorLogged = true;
-                LOGGER.error("Astatin overlay failed", t);
-            }
+            LOGGER.error("Astatin overlay failed", t);
+            renderer.abort();
+            AstatinClient.disableInterface();
         } finally {
             renderer.end();
+            if (renderer.isDisabled()) {
+                AstatinClient.disableInterface();
+            }
         }
     }
 

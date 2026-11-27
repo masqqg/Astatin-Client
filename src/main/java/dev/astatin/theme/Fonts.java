@@ -42,10 +42,10 @@ public final class Fonts {
         if (loaded) {
             return;
         }
-        loaded = true;
         for (Weight weight : Weight.values()) {
             TYPEFACES.put(weight, loadTypeface("/assets/astatin/fonts/" + weight.file));
         }
+        loaded = true;
     }
 
     private static Typeface loadTypeface(String path) {

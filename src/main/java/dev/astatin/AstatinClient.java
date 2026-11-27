@@ -47,6 +47,7 @@ public final class AstatinClient implements ClientModInitializer {
     private static int dirtyTicks;
     private static float hudMicros;
     private static boolean fontsLoaded;
+    private static boolean interfaceDisabled;
 
     @Override
     public void onInitializeClient() {
@@ -55,6 +56,7 @@ public final class AstatinClient implements ClientModInitializer {
             fontsLoaded = true;
         } catch (Throwable t) {
             LOGGER.error("Could not load the bundled interface font", t);
+            disableInterface();
         }
 
         config = ConfigManager.load();
@@ -84,21 +86,25 @@ public final class AstatinClient implements ClientModInitializer {
         if (!ready) {
             return;
         }
+        if (!ready() && (mc.screen instanceof AstatinTitleScreen
+                || mc.screen instanceof AstatinClickGuiScreen || mc.screen instanceof HudEditorScreen)) {
+            mc.setScreen(mc.level == null ? new TitleScreen() : null);
+        }
         while (menuKey != null && menuKey.consumeClick()) {
-            if (mc.screen == null) {
+            if (ready() && mc.screen == null) {
                 mc.setScreen(new AstatinClickGuiScreen());
             } else if (mc.screen instanceof AstatinClickGuiScreen || mc.screen instanceof HudEditorScreen) {
                 mc.setScreen(null);
             }
         }
         while (editorKey != null && editorKey.consumeClick()) {
-            if (mc.screen == null) {
+            if (ready() && mc.screen == null) {
                 mc.setScreen(new HudEditorScreen());
             }
         }
 
         // Covers a very early title screen created before the client initializer ran.
-        if (mc.screen instanceof TitleScreen && !(mc.screen instanceof AstatinTitleScreen)) {
+        if (ready() && mc.screen instanceof TitleScreen && !(mc.screen instanceof AstatinTitleScreen)) {
             mc.setScreen(new AstatinTitleScreen());
         }
 
@@ -156,7 +162,11 @@ public final class AstatinClient implements ClientModInitializer {
     }
 
     public static boolean ready() {
-        return ready && fontsLoaded;
+        return ready && fontsLoaded && !interfaceDisabled;
+    }
+
+    public static void disableInterface() {
+        interfaceDisabled = true;
     }
 
     public static ConfigData config() {

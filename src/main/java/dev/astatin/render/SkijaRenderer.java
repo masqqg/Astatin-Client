@@ -107,6 +107,7 @@ public final class SkijaRenderer {
             return true;
         } catch (Throwable t) {
             disable(t);
+            active = false;
             restoreState();
             return false;
         }
@@ -114,6 +115,11 @@ public final class SkijaRenderer {
 
     public Render2D ui() {
         return ui;
+    }
+
+    public void abort() {
+        active = false;
+        restoreState();
     }
 
     public void end() {
