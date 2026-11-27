@@ -14,6 +14,7 @@ public final class MenuState {
     public boolean searchFocused;
     public Module selected;
     public float scroll;
+    public float settingsScroll;
     public Setting openPicker;
     public float pickerHue;
     public float pickerSat;

@@ -43,6 +43,7 @@ public final class HudEditorScreen extends Screen {
                 dev.astatin.theme.Fonts.semibold(16f), dev.astatin.theme.Theme.TEXT);
         r.textCenteredTop("Join a world to edit your HUD", r.width() * 0.5f, r.height() * 0.45f + 26f,
                 dev.astatin.theme.Fonts.regular(9f), dev.astatin.theme.Theme.TEXT_MUTED);
+        HudManager.drawEditorClose(r, r.width());
     }
 
     @Override
@@ -52,6 +53,10 @@ public final class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0 && HudManager.editorClose(width).contains(event.x(), event.y())) {
+            onClose();
+            return true;
+        }
         HudManager hud = AstatinClient.hud();
         HudData data = AstatinClient.hudData();
         if (hud == null) {
@@ -99,7 +104,7 @@ public final class HudEditorScreen extends Screen {
         }
         if (resizing != null) {
             float delta = (float) ((event.y() - lastMouseY) * 0.006);
-            hud.resize(resizing, delta);
+            hud.resize(resizing, delta, width, height);
             lastMouseY = event.y();
             return true;
         }
@@ -124,7 +129,7 @@ public final class HudEditorScreen extends Screen {
             HudElement element = hud.at((float) mouseX, (float) mouseY, AstatinClient.hudData(),
                     width, height, false);
             if (element != null) {
-                hud.resize(element, (float) scrollY * 0.05f);
+                hud.resize(element, (float) scrollY * 0.05f, width, height);
                 AstatinClient.markDirty();
                 return true;
             }

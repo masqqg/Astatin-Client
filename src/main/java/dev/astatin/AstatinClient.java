@@ -12,6 +12,7 @@ import dev.astatin.modules.Module;
 import dev.astatin.modules.Modules;
 import dev.astatin.modules.ZoomState;
 import dev.astatin.render.SkijaRenderer;
+import dev.astatin.render.PojavSkijaNative;
 import dev.astatin.theme.Fonts;
 import dev.astatin.title.AstatinTitleScreen;
 import dev.astatin.theme.Theme;
@@ -52,6 +53,7 @@ public final class AstatinClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         try {
+            PojavSkijaNative.prepare();
             Fonts.load();
             fontsLoaded = true;
         } catch (Throwable t) {

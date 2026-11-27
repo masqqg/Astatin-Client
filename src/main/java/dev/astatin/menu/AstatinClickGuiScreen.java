@@ -57,6 +57,10 @@ public final class AstatinClickGuiScreen extends Screen {
         MenuLayout layout = new MenuLayout(width, height);
         List<Module> visible = renderer.visible(state);
         state.scroll = Math.max(0f, Math.min(state.scroll, layout.maxScroll(visible.size())));
+        if (layout.mobile && state.selected != null) {
+            state.settingsScroll = Math.max(0f, Math.min(state.settingsScroll,
+                    layout.settingsMaxScroll(state.selected, state.openPicker)));
+        }
         renderer.update(state, width, height);
         renderer.render(r, state);
     }
@@ -79,6 +83,14 @@ public final class AstatinClickGuiScreen extends Screen {
                 onClose();
                 return true;
             }
+            if (layout.mobile && (layout.scrollUp.contains(event.x(), event.y())
+                    || layout.scrollDown.contains(event.x(), event.y()))) {
+                scrollMobile(layout, layout.scrollUp.contains(event.x(), event.y()) ? -58f : 58f);
+                return true;
+            }
+            if (layout.mobile && state.selected != null) {
+                return clickMobileInspector(event, layout, modules);
+            }
             if (layout.search.contains(event.x(), event.y())) {
                 state.searchFocused = true;
                 state.openPicker = null;
@@ -96,6 +108,7 @@ public final class AstatinClickGuiScreen extends Screen {
                     state.category = category;
                     state.selected = null;
                     state.openPicker = null;
+                    state.settingsScroll = 0f;
                     state.search = "";
                     state.searchFocused = false;
                     state.scroll = 0f;
@@ -110,7 +123,7 @@ public final class AstatinClickGuiScreen extends Screen {
                 if (card.bottom() > layout.grid.bottom() + 1f || card.y() < layout.grid.y() - 1f) {
                     continue;
                 }
-                if (layout.cardToggle(card).contains(event.x(), event.y())) {
+                if ((!layout.mobile || !module.action) && layout.cardToggle(card).contains(event.x(), event.y())) {
                     modules.toggle(module);
                     AstatinClient.markDirty();
                     return true;
@@ -122,6 +135,7 @@ public final class AstatinClickGuiScreen extends Screen {
                     } else {
                         state.selected = module;
                         state.openPicker = null;
+                        state.settingsScroll = 0f;
                     }
                     return true;
                 }
@@ -202,6 +216,59 @@ public final class AstatinClickGuiScreen extends Screen {
         return super.mouseClicked(event, doubleClick);
     }
 
+    private boolean clickMobileInspector(MouseButtonEvent event, MenuLayout layout, Modules modules) {
+        Module module = state.selected;
+        if (layout.inspectorClose().contains(event.x(), event.y())) {
+            state.selected = null;
+            state.openPicker = null;
+            state.settingsScroll = 0f;
+        } else if (layout.inspectorToggle().contains(event.x(), event.y())) {
+            modules.toggle(module);
+            AstatinClient.markDirty();
+        } else if (layout.settingsViewport().contains(event.x(), event.y())) {
+            for (int i = 0; i < module.settings.size(); i++) {
+                Setting setting = module.settings.get(i);
+                Frame row = layout.settingRow(module, i, state.openPicker, state.settingsScroll);
+                if (!row.contains(event.x(), event.y())) {
+                    continue;
+                }
+                if (setting.kind == Setting.Kind.BOOL) {
+                    setting.boolValue = !setting.boolValue;
+                    AstatinClient.markDirty();
+                } else if (setting.kind == Setting.Kind.SLIDER) {
+                    draggingSlider = setting;
+                    applySlider(module, setting, event.x(), layout);
+                } else if (state.openPicker != setting) {
+                    state.openPicker(setting);
+                } else {
+                    Frame picker = layout.colorPicker(row);
+                    Frame square = layout.pickerSquare(picker);
+                    Frame hue = layout.pickerHue(picker);
+                    if (square.contains(event.x(), event.y()) || hue.contains(event.x(), event.y())) {
+                        draggingColor = setting;
+                        draggingSquare = square.contains(event.x(), event.y());
+                        draggingHue = !draggingSquare;
+                        applyPicker(setting, event.x(), event.y(), square, hue);
+                    } else {
+                        state.openPicker = null;
+                    }
+                }
+                break;
+            }
+        }
+        return true;
+    }
+
+    private void scrollMobile(MenuLayout layout, float delta) {
+        if (state.selected != null) {
+            state.settingsScroll = Math.max(0f, Math.min(state.settingsScroll + delta,
+                    layout.settingsMaxScroll(state.selected, state.openPicker)));
+        } else {
+            state.scroll = Math.max(0f, Math.min(state.scroll + delta,
+                    layout.maxScroll(renderer.visible(state).size())));
+        }
+    }
+
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         if (draggingSlider != null || draggingColor != null) {
@@ -226,7 +293,8 @@ public final class AstatinClickGuiScreen extends Screen {
         if (draggingColor != null && state.selected != null) {
             int index = state.selected.settings.indexOf(draggingColor);
             if (index >= 0) {
-                Frame row = layout.settingRow(state.selected, index, state.openPicker);
+                Frame row = layout.settingRow(state.selected, index, state.openPicker,
+                        layout.mobile ? state.settingsScroll : 0f);
                 Frame picker = layout.colorPicker(row);
                 applyPicker(draggingColor, event.x(), event.y(), layout.pickerSquare(picker), layout.pickerHue(picker));
                 return true;
@@ -240,7 +308,8 @@ public final class AstatinClickGuiScreen extends Screen {
         if (index < 0) {
             return;
         }
-        Frame track = layout.sliderTrack(layout.settingRow(module, index, state.openPicker));
+        Frame track = layout.sliderTrack(layout.settingRow(module, index, state.openPicker,
+                layout.mobile ? state.settingsScroll : 0f));
         float t = (float) ((mouseX - track.x()) / Math.max(1f, track.w()));
         setting.setNormalized(t);
         if (setting.key().equals("clickgui.accent")) {
@@ -271,6 +340,11 @@ public final class AstatinClickGuiScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         MenuLayout layout = new MenuLayout(width, height);
+        if (layout.mobile && (layout.grid.contains(mouseX, mouseY)
+                || state.selected != null && layout.inspector.contains(mouseX, mouseY))) {
+            scrollMobile(layout, -(float) scrollY * 28f);
+            return true;
+        }
         if (layout.grid.contains(mouseX, mouseY)) {
             List<Module> visible = renderer.visible(state);
             state.scroll = Math.max(0f, Math.min(state.scroll - (float) scrollY * 28f,

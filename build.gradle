@@ -13,7 +13,7 @@ repositories {
     mavenCentral()
 }
 
-def skijaPlatforms = ['windows-x64', 'windows-arm64', 'linux-x64', 'linux-arm64', 'macos-x64', 'macos-arm64']
+def skijaPlatforms = ['windows-x64', 'windows-arm64', 'linux-x64', 'linux-arm64', 'macos-x64', 'macos-arm64', 'android-x64', 'android-arm64']
 def selectedSkijaPlatform = providers.gradleProperty('skijaPlatform').orNull
 if (selectedSkijaPlatform != null && !skijaPlatforms.contains(selectedSkijaPlatform)) {
     throw new GradleException("Unknown skijaPlatform '${selectedSkijaPlatform}'. Choose one of: ${skijaPlatforms.join(', ')}")
@@ -27,13 +27,20 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Bundle Skija's Java API and the native libraries for each supported desktop platform.
+    // Bundle Skija's Java API and the native libraries for supported platforms.
     // Include the natives on the development runtime classpath as well.
     implementation include("io.github.humbleui:skija-shared:${project.skija_version}")
     implementation include("io.github.humbleui:types:0.2.0")
     includedSkijaPlatforms.each { platform ->
         runtimeOnly include("io.github.humbleui:skija-${platform}:${project.skija_version}")
     }
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 java {

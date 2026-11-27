@@ -14,6 +14,7 @@ import org.lwjgl.opengl.GL13C;
 import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.opengl.GL20C;
+import org.lwjgl.opengl.GL21C;
 import org.lwjgl.opengl.GL30C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,11 @@ public final class SkijaRenderer {
     private int savedProgram;
     private int savedVao;
     private int savedArrayBuffer;
+    private int savedUnpackBuffer;
+    private int savedUnpackAlignment;
+    private int savedUnpackRowLength;
+    private int savedUnpackSkipRows;
+    private int savedUnpackSkipPixels;
     private int savedActiveTexture;
     private int savedTexture0;
     private int savedViewportX;
@@ -88,6 +94,11 @@ public final class SkijaRenderer {
         canvasSaved = false;
         try {
             saveState();
+            GL15C.glBindBuffer(GL21C.GL_PIXEL_UNPACK_BUFFER, 0);
+            GL11C.glPixelStorei(GL11C.GL_UNPACK_ALIGNMENT, 4);
+            GL11C.glPixelStorei(GL11C.GL_UNPACK_ROW_LENGTH, 0);
+            GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_ROWS, 0);
+            GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_PIXELS, 0);
             ensureSurface(framebufferWidth, framebufferHeight);
             GL30C.glBindFramebuffer(GL30C.GL_FRAMEBUFFER, fbo);
             GL11C.glViewport(0, 0, framebufferWidth, framebufferHeight);
@@ -281,6 +292,11 @@ public final class SkijaRenderer {
         savedProgram = GL11C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
         savedVao = GL11C.glGetInteger(GL30C.GL_VERTEX_ARRAY_BINDING);
         savedArrayBuffer = GL11C.glGetInteger(GL15C.GL_ARRAY_BUFFER_BINDING);
+        savedUnpackBuffer = GL11C.glGetInteger(GL21C.GL_PIXEL_UNPACK_BUFFER_BINDING);
+        savedUnpackAlignment = GL11C.glGetInteger(GL11C.GL_UNPACK_ALIGNMENT);
+        savedUnpackRowLength = GL11C.glGetInteger(GL11C.GL_UNPACK_ROW_LENGTH);
+        savedUnpackSkipRows = GL11C.glGetInteger(GL11C.GL_UNPACK_SKIP_ROWS);
+        savedUnpackSkipPixels = GL11C.glGetInteger(GL11C.GL_UNPACK_SKIP_PIXELS);
         savedBlend = GL11C.glIsEnabled(GL11C.GL_BLEND);
         savedDepth = GL11C.glIsEnabled(GL11C.GL_DEPTH_TEST);
         savedCull = GL11C.glIsEnabled(GL11C.GL_CULL_FACE);
@@ -334,6 +350,11 @@ public final class SkijaRenderer {
         GL20C.glUseProgram(savedProgram);
         GL30C.glBindVertexArray(savedVao);
         GL15C.glBindBuffer(GL15C.GL_ARRAY_BUFFER, savedArrayBuffer);
+        GL15C.glBindBuffer(GL21C.GL_PIXEL_UNPACK_BUFFER, savedUnpackBuffer);
+        GL11C.glPixelStorei(GL11C.GL_UNPACK_ALIGNMENT, savedUnpackAlignment);
+        GL11C.glPixelStorei(GL11C.GL_UNPACK_ROW_LENGTH, savedUnpackRowLength);
+        GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_ROWS, savedUnpackSkipRows);
+        GL11C.glPixelStorei(GL11C.GL_UNPACK_SKIP_PIXELS, savedUnpackSkipPixels);
         GL13C.glActiveTexture(GL13C.GL_TEXTURE0);
         GL11C.glBindTexture(GL11C.GL_TEXTURE_2D, savedTexture0);
         GL13C.glActiveTexture(savedActiveTexture);

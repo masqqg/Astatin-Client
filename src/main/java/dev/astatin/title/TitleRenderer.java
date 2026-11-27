@@ -20,7 +20,21 @@ public final class TitleRenderer {
     private final Map<String, Anim> hovers = new HashMap<>();
     private final Anim open = new Anim(0f, 300f, 32f);
 
+    private static boolean compact(float width, float height) {
+        return width < 600f || height < 380f;
+    }
+
     public Frame button(int index, float width, float height) {
+        if (compact(width, height)) {
+            float side = Math.min(12f, width * 0.05f);
+            float bottom = Math.min(12f, height * 0.05f);
+            float header = Math.min(48f, height * 0.2f);
+            float gap = Math.min(8f, height * 0.025f);
+            float buttonH = Math.max(0f, Math.min(42f, (height - header - bottom - 3f * gap) / 4f));
+            float buttonW = Math.max(0f, Math.min(300f, width - 2f * side));
+            float y = header + (height - header - bottom - 4f * buttonH - 3f * gap) * 0.5f;
+            return new Frame((width - buttonW) * 0.5f, y + index * (buttonH + gap), buttonW, buttonH);
+        }
         float buttonW = Math.min(300f, width * 0.32f);
         float buttonH = 46f;
         float x = width - 64f - buttonW;
@@ -85,6 +99,18 @@ public final class TitleRenderer {
                     Theme.accentSoft(0.10f + 0.15f * (float) Math.abs(Math.sin(state.time + i))));
         }
 
+        if (compact(w, h)) {
+            Frame first = button(0, w, h);
+            if (first.y() >= 28f && w >= 100f) {
+                r.textCenteredTop("ASTATIN", w * 0.5f, first.y() - 28f,
+                        Fonts.bold(16f), Theme.TEXT);
+            }
+            for (int i = 0; i < BUTTONS.length; i++) {
+                drawCompactButton(r, i);
+            }
+            return;
+        }
+
         // brand block
         r.imageFit("/assets/astatin/textures/gui/logo.png", 60f, h * 0.22f, 210f, h * 0.22f + 148f);
         r.textTracked("ASTATIN", 62f, h * 0.22f + 182f, Fonts.bold(38f), Theme.TEXT, 2.2f);
@@ -106,6 +132,24 @@ public final class TitleRenderer {
         String right = "MINECRAFT 1.21.11  ·  FABRIC";
         r.textTracked(right, w - 64f - r.trackedWidth(right, Fonts.medium(6.4f), 1.1f),
                 h - 22f, Fonts.medium(6.4f), Theme.TEXT_MUTED, 1.1f);
+    }
+
+    private void drawCompactButton(Render2D r, int index) {
+        Frame frame = button(index, r.width(), r.height());
+        float hover = anim("btn." + index).get();
+        float radius = Math.min(10f, Math.min(frame.w(), frame.h()) * 0.25f);
+        r.roundRect(frame.x(), frame.y(), frame.right(), frame.bottom(), radius,
+                Theme.mix(0x18FFFFFF, Theme.accentSoft(0.16f), hover));
+        r.roundRectStroke(frame.x() + 0.5f, frame.y() + 0.5f, frame.right() - 0.5f,
+                frame.bottom() - 0.5f, radius, 1f,
+                Theme.mix(0x20FFFFFF, Theme.accentSoft(0.45f), hover));
+        float fontSize = Math.min(11f, Math.max(3f, frame.h() * 0.4f));
+        var font = Fonts.medium(fontSize);
+        float labelWidth = r.width(BUTTONS[index], font);
+        if (labelWidth <= frame.w() - 8f) {
+            r.textCenterY(BUTTONS[index], frame.centerX() - labelWidth * 0.5f,
+                    frame.centerY(), font, Theme.TEXT);
+        }
     }
 
     private void drawButton(Render2D r, TitleState state, int index) {

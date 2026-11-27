@@ -132,6 +132,10 @@ public final class MenuRenderer {
         if (progress <= 0.002f) {
             return;
         }
+        if (layout.mobile) {
+            drawMobile(r, state, layout, visible);
+            return;
+        }
         layerPaint.setAlphaf(Math.min(1f, progress));
         float scale = 0.975f + 0.025f * progress;
         r.canvas().saveLayer(Rect.makeLTRB(0f, 0f, w, h), layerPaint);
@@ -149,6 +153,94 @@ public final class MenuRenderer {
 
         r.restore();
         r.canvas().restore();
+    }
+
+    private void drawMobile(Render2D r, MenuState state, MenuLayout layout, List<Module> visible) {
+        Frame main = layout.main;
+        r.roundRect(main.x(), main.y(), main.right(), main.bottom(), 10f, 0xF20B0C0F);
+        r.textCenterY("ASTATIN", main.x() + 10f, main.y() + 18f, Fonts.bold(11f), Theme.TEXT);
+        if (state.selected == null) {
+            Frame search = layout.search;
+            r.roundRect(search.x(), search.y(), search.right(), search.bottom(), 7f, 0x20FFFFFF);
+            String query = state.search.isBlank() ? "Search" : state.search;
+            r.textCenterY(trim(r, query, Fonts.regular(9f), search.w() - 12f), search.x() + 6f,
+                    search.centerY(), Fonts.regular(9f), state.search.isBlank() ? Theme.TEXT_MUTED : Theme.TEXT);
+        }
+        Icons.draw(r, Icons.Glyph.CLOSE, layout.close.centerX(), layout.close.centerY(), 12f, Theme.TEXT);
+
+        if (state.selected == null) {
+            for (Category category : Category.values()) {
+                Frame frame = layout.category(category.ordinal());
+                boolean active = category == state.category && state.search.isBlank();
+                r.roundRect(frame.x(), frame.y(), frame.right(), frame.bottom(), 7f,
+                        active ? Theme.accentSoft(0.22f) : 0x10FFFFFF);
+                var font = Fonts.medium(9f);
+                String label = trim(r, category.label, font, frame.w() - 8f);
+                r.textCenterY(label, frame.centerX() - r.width(label, font) * 0.5f, frame.centerY(), font,
+                        active ? Theme.TEXT : Theme.TEXT_DIM);
+            }
+            r.save();
+            r.clipRect(layout.grid.x(), layout.grid.y(), layout.grid.right(), layout.grid.bottom());
+            for (int i = 0; i < visible.size(); i++) {
+                Frame card = layout.card(i, visible.size(), state.scroll);
+                if (card.bottom() >= layout.grid.y() && card.y() <= layout.grid.bottom()) {
+                    drawMobileCard(r, layout, visible.get(i), card);
+                }
+            }
+            r.restore();
+        } else {
+            drawMobileInspector(r, state, layout, state.selected);
+        }
+        drawMobileScroll(r, layout.scrollUp, "↑");
+        drawMobileScroll(r, layout.scrollDown, "↓");
+    }
+
+    private void drawMobileScroll(Render2D r, Frame frame, String label) {
+        r.roundRect(frame.x(), frame.y(), frame.right(), frame.bottom(), 7f, 0x20FFFFFF);
+        var font = Fonts.semibold(14f);
+        r.textCenterY(label, frame.centerX() - r.width(label, font) * 0.5f,
+                frame.centerY(), font, Theme.TEXT);
+    }
+
+    private void drawMobileCard(Render2D r, MenuLayout layout, Module module, Frame card) {
+        r.roundRect(card.x(), card.y(), card.right(), card.bottom(), 8f, 0x18FFFFFF);
+        Icons.draw(r, iconFor(module), card.x() + 21f, card.centerY(), 14f,
+                module.enabled ? Theme.AMBER : Theme.TEXT_DIM);
+        var font = Fonts.semibold(10f);
+        String name = trim(r, module.name, font, card.w() - 100f);
+        r.textCenterY(name, card.x() + 38f, card.centerY(), font, Theme.TEXT);
+        if (module.action) {
+            Icons.draw(r, Icons.Glyph.CHEVRON_RIGHT, card.right() - 24f, card.centerY(), 10f, Theme.AMBER);
+        } else {
+            drawToggle(r, layout.cardToggle(card), module, module.enabled);
+        }
+    }
+
+    private void drawMobileInspector(Render2D r, MenuState state, MenuLayout layout, Module module) {
+        Frame panel = layout.inspector;
+        r.roundRect(panel.x(), panel.y(), panel.right(), panel.bottom(), 8f, 0xFF17181B);
+        r.textCenterY(trim(r, module.name, Fonts.semibold(11f), panel.w() - 52f),
+                panel.x() + 10f, panel.y() + 18f, Fonts.semibold(11f), Theme.TEXT);
+        Icons.draw(r, Icons.Glyph.CLOSE, layout.inspectorClose().centerX(), layout.inspectorClose().centerY(),
+                11f, Theme.TEXT);
+        r.textCenterY("Enabled", panel.x() + 10f, panel.y() + 41f, Fonts.medium(9f), Theme.TEXT_SOFT);
+        drawToggle(r, layout.inspectorToggle(), module, module.enabled);
+        Frame viewport = layout.settingsViewport();
+        r.save();
+        r.clipRect(viewport.x(), viewport.y(), viewport.right(), viewport.bottom());
+        if (module.settings.isEmpty()) {
+            r.textTop("No settings for this module.", panel.x() + 16f, viewport.y(),
+                    Fonts.regular(8.5f), Theme.TEXT_MUTED);
+        } else {
+            for (int i = 0; i < module.settings.size(); i++) {
+                Setting setting = module.settings.get(i);
+                Frame row = layout.settingRow(module, i, state.openPicker, state.settingsScroll);
+                if (row.bottom() > viewport.y() && row.y() < viewport.bottom()) {
+                    drawSetting(r, state, layout, setting, row);
+                }
+            }
+        }
+        r.restore();
     }
 
     private void drawBackdrop(Render2D r, MenuState state, float w, float h) {
