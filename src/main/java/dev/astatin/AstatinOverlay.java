@@ -36,6 +36,10 @@ public final class AstatinOverlay {
             return;
         }
         Screen screen = mc.screen;
+        // F1 hides the in-game HUD, so do not composite an empty overlay over the world.
+        if (screen == null && mc.options.hideGui) {
+            return;
+        }
         if (screen != null && !(screen instanceof AstatinClickGuiScreen)
                 && !(screen instanceof HudEditorScreen) && !(screen instanceof AstatinTitleScreen)) {
             return;
