@@ -16,6 +16,7 @@ import org.lwjgl.opengl.GL14C;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
+import org.lwjgl.opengl.GL33C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,6 +94,11 @@ public final class SkijaRenderer {
             ensureGlContext();
             saveState();
             ensureSurface(framebufferWidth, framebufferHeight);
+            // Minecraft rewrites GL state behind Skia's back every frame, so the
+            // context's cached state is dropped and the texture sampler binding
+            // cleared before the surface is used again.
+            context.resetGLAll();
+            GL33C.glBindSampler(0, 0);
             GL30C.glBindFramebuffer(GL30C.GL_FRAMEBUFFER, fbo);
             GL11C.glViewport(0, 0, framebufferWidth, framebufferHeight);
             GL11C.glDisable(GL11C.GL_SCISSOR_TEST);
@@ -449,7 +455,9 @@ public final class SkijaRenderer {
     private void disable(Throwable throwable) {
         if (!disabled) {
             disabled = true;
-            LOGGER.error("Skija overlay disabled after a rendering error", throwable);
+            LOGGER.error("Skija overlay disabled after a rendering error"
+                    + " (bundled native: " + System.getProperty("os.name") + "/"
+                    + System.getProperty("os.arch") + ")", throwable);
         }
     }
 

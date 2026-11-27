@@ -152,22 +152,20 @@ public final class MenuRenderer {
     }
 
     private void drawBackdrop(Render2D r, MenuState state, float w, float h) {
-        r.rect(0f, 0f, w, h, 0xB407080A);
-        r.radialGlow(w * 0.16f, -h * 0.1f, h * 0.9f, Theme.accentSoft(0.075f), Theme.accentSoft(0f));
-        r.radialGlow(w * 0.9f, h * 0.95f, h * 0.85f, 0x0F6E8BFF, 0x006E8BFF);
-        r.radialGlow(w * 0.5f, h * 0.5f, Math.max(w, h) * 0.72f, 0x00000000, 0x6B000000);
+        // The menu artwork is drawn exactly as delivered: no tint, no overlay.
+        r.imageCover("/assets/astatin/textures/gui/menu.jpg", 0f, 0f, w, h);
+    }
 
-        // A handful of slow amber sparks. Deterministic, so the scene is stable.
-        for (int i = 0; i < 16; i++) {
-            float seed = i * 78.233f;
-            float baseX = (float) ((Math.sin(seed) * 0.5f + 0.5f) * w);
-            float speed = 6f + (i % 5) * 3f;
-            float y = h - ((state.time * speed + i * 61f) % (h + 80f)) + 40f;
-            float x = baseX + (float) Math.sin(state.time * 0.35f + i) * 10f;
-            float alpha = 0.1f + 0.18f * (float) Math.abs(Math.sin(state.time * 0.9f + i));
-            float size = i % 4 == 0 ? 1.6f : 1f;
-            r.circle(x, y, size, Theme.accentSoft(alpha));
+    /** Trims a label with an ellipsis so long player names never leave the card. */
+    private String fit(String value, float maxWidth, io.github.humbleui.skija.Font font) {
+        if (value == null || value.isEmpty()) {
+            return "";
         }
+        String text = value;
+        while (text.length() > 1 && font.measureTextWidth(text) > maxWidth) {
+            text = text.substring(0, text.length() - 1);
+        }
+        return text.length() == value.length() ? text : text + "…";
     }
 
     private void drawSidebar(Render2D r, MenuState state, MenuLayout layout) {
@@ -175,10 +173,12 @@ public final class MenuRenderer {
         r.glass(side.x(), side.y(), side.right(), side.bottom(), Theme.RADIUS_PANEL, 0x70000000, 14f);
         r.accentEdge(side.x(), side.y(), side.right(), side.bottom(), Theme.RADIUS_PANEL);
 
-        r.textTop("Ast", side.x() + 15f, side.y() + 14f, Fonts.semibold(18f), Theme.TEXT);
-        Icons.draw(r, Icons.Glyph.STAR, side.x() + 45f, side.y() + 19f, 5.5f, Theme.accentSoft(0.9f));
-        r.textTracked("ASTATIN", side.x() + 52f, side.y() + 30f, Fonts.bold(11.5f), Theme.TEXT, 0.8f);
-        r.textTracked("CLIENT", side.x() + 52.5f, side.y() + 42f, Fonts.medium(6.2f), Theme.TEXT_MUTED, 1.2f);
+        // Brand mark plus the server title, personalised below in the profile card.
+        r.imageFit("/assets/astatin/textures/gui/mark.png", side.x() + 8f, side.y() + 12f,
+                side.x() + 50f, side.y() + 46f);
+        r.textTracked("CHICKEN SMP", side.x() + 54f, side.y() + 28f, Fonts.bold(10f), Theme.TEXT, 0.4f);
+        r.textTracked("ASTATIN CLIENT", side.x() + 54.5f, side.y() + 40f, Fonts.medium(6.2f),
+                Theme.TEXT_MUTED, 0.9f);
 
         r.line(side.x() + 14f, side.y() + 55f, side.right() - 14f, side.y() + 55f, 1f, 0x12FFFFFF);
         r.textTracked("CATEGORIES", side.x() + 16f, side.y() + 70f, Fonts.medium(6f), Theme.TEXT_MUTED, 1.2f);
@@ -232,8 +232,11 @@ public final class MenuRenderer {
         float avatarY = profile.y() + 9f;
         r.gradientRect(avatarX, avatarY, avatarX + 28f, avatarY + 28f, 8f,
                 Theme.accentLight(0.12f), Theme.accentDark(0.05f));
-        r.textCenteredTop("A", avatarX + 14f, avatarY + 7.5f, Fonts.bold(12f), Theme.TEXT_ON_ACCENT);
-        r.textCenterY("Astatin", profile.x() + 45f, profile.y() + 17f, Fonts.semibold(10f), Theme.TEXT);
+        String playerName = state.playerName == null || state.playerName.isBlank() ? "Player" : state.playerName.strip();
+        String initial = playerName.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
+        r.textCenteredTop(initial, avatarX + 14f, avatarY + 7.5f, Fonts.bold(12f), Theme.TEXT_ON_ACCENT);
+        r.textCenterY(fit(playerName, profile.right() - profile.x() - 60f, Fonts.semibold(10f)),
+                profile.x() + 45f, profile.y() + 17f, Fonts.semibold(10f), Theme.TEXT);
         r.textCenterY("v1.0.0 · Fabric", profile.x() + 45f, profile.y() + 30f, Fonts.regular(7.5f), Theme.TEXT_MUTED);
         Icons.draw(r, Icons.Glyph.SLIDERS, profile.right() - 18f, profile.centerY(), 12f, Theme.TEXT_MUTED);
 

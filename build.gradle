@@ -21,12 +21,16 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Skija is bundled (jar-in-jar). The platform artifacts only ship the native
-    // libraries; the Java API lives in skija-shared. Windows is shipped in the mod,
-    // the Linux artifact is only used by the offline preview harness.
+    // libraries; the Java API lives in skija-shared. Every desktop platform is
+    // bundled so one jar runs on Windows, Linux and macOS on x64 and arm64.
     implementation include("io.github.humbleui:skija-shared:${project.skija_version}")
     implementation include("io.github.humbleui:types:0.2.0")
     include("io.github.humbleui:skija-windows-x64:${project.skija_version}")
-    runtimeOnly "io.github.humbleui:skija-linux-x64:${project.skija_version}"
+    include("io.github.humbleui:skija-windows-arm64:${project.skija_version}")
+    include("io.github.humbleui:skija-linux-x64:${project.skija_version}")
+    include("io.github.humbleui:skija-linux-arm64:${project.skija_version}")
+    include("io.github.humbleui:skija-macos-x64:${project.skija_version}")
+    include("io.github.humbleui:skija-macos-arm64:${project.skija_version}")
 }
 
 java {

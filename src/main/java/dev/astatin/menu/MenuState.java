@@ -13,6 +13,8 @@ public final class MenuState {
     public String search = "";
     public boolean searchFocused;
     public Module selected;
+    /** Name shown in the sidebar profile card; filled from the local player. */
+    public String playerName = "Player";
     public float scroll;
     public Setting openPicker;
     public float pickerHue;

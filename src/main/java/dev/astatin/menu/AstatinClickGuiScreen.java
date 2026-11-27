@@ -54,6 +54,11 @@ public final class AstatinClickGuiScreen extends Screen {
         state.mouseY = (int) mc.mouseHandler.getScaledYPos(mc.getWindow());
         state.dt = dt;
         state.time += dt;
+        if (mc.getUser() != null && mc.getUser().getName() != null) {
+            state.playerName = mc.getUser().getName();
+        } else if (mc.player != null) {
+            state.playerName = mc.player.getGameProfile().name();
+        }
         MenuLayout layout = new MenuLayout(width, height);
         List<Module> visible = renderer.visible(state);
         state.scroll = Math.max(0f, Math.min(state.scroll, layout.maxScroll(visible.size())));
