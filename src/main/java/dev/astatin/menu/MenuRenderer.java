@@ -7,11 +7,10 @@ import dev.astatin.modules.Modules;
 import dev.astatin.modules.Setting;
 import dev.astatin.render.Icons;
 import dev.astatin.render.Render2D;
+import dev.astatin.render.UiFont;
 import dev.astatin.theme.ColorUtil;
 import dev.astatin.theme.Fonts;
 import dev.astatin.theme.Theme;
-import io.github.humbleui.skija.Paint;
-import io.github.humbleui.types.Rect;
 
 import java.util.HashMap;
 import java.util.List;
@@ -29,8 +28,6 @@ public final class MenuRenderer {
     private final Anim inspector = new Anim(0f, 320f, 34f);
     private final Anim searchFocus = new Anim(0f, 320f, 30f);
     private final Anim indicator = new Anim(0f, 300f, 34f);
-    private final Paint layerPaint = new Paint();
-    private final Paint panelPaint = new Paint();
 
     public MenuRenderer(Modules modules) {
         this.modules = modules;
@@ -132,9 +129,8 @@ public final class MenuRenderer {
         if (progress <= 0.002f) {
             return;
         }
-        layerPaint.setAlphaf(Math.min(1f, progress));
         float scale = 0.975f + 0.025f * progress;
-        r.canvas().saveLayer(Rect.makeLTRB(0f, 0f, w, h), layerPaint);
+        r.pushLayer(progress);
         r.save();
         r.translate(w * 0.5f, h * 0.5f);
         r.scale(scale, scale);
@@ -148,7 +144,7 @@ public final class MenuRenderer {
         }
 
         r.restore();
-        r.canvas().restore();
+        r.popLayer();
     }
 
     private void drawBackdrop(Render2D r, MenuState state, float w, float h) {
@@ -157,12 +153,12 @@ public final class MenuRenderer {
     }
 
     /** Trims a label with an ellipsis so long player names never leave the card. */
-    private String fit(String value, float maxWidth, io.github.humbleui.skija.Font font) {
+    private String fit(String value, float maxWidth, UiFont font) {
         if (value == null || value.isEmpty()) {
             return "";
         }
         String text = value;
-        while (text.length() > 1 && font.measureTextWidth(text) > maxWidth) {
+        while (text.length() > 1 && font.measureWidth(text) > maxWidth) {
             text = text.substring(0, text.length() - 1);
         }
         return text.length() == value.length() ? text : text + "…";
@@ -446,9 +442,7 @@ public final class MenuRenderer {
         r.rect(layout.main.x() + 1f, layout.grid.y() - 6f, layout.main.right() - 1f, layout.grid.bottom() + 6f,
                 Theme.withAlpha(0x000000, 0.44f * p));
 
-        panelPaint.setAlphaf(Math.min(1f, p));
-        r.canvas().saveLayer(Rect.makeLTRB(panel.x() - 4f, panel.y() - 4f, panel.right() + 4f, panel.bottom() + 4f),
-                panelPaint);
+        r.pushLayer(p);
         r.save();
         r.translate(offset, 0f);
 
@@ -512,7 +506,7 @@ public final class MenuRenderer {
                 Fonts.regular(7.4f), Theme.TEXT_MUTED);
 
         r.restore();
-        r.canvas().restore();
+        r.popLayer();
     }
 
     private void drawSetting(Render2D r, MenuState state, MenuLayout layout, Setting setting, Frame row) {
@@ -627,7 +621,7 @@ public final class MenuRenderer {
         r.circle(x + knobSize * 0.5f, frame.centerY(), knobSize * 0.5f, 0xFFFFFFFF);
     }
 
-    private String trim(Render2D r, String value, io.github.humbleui.skija.Font font, float maxWidth) {
+    private String trim(Render2D r, String value, UiFont font, float maxWidth) {
         if (r.width(value, font) <= maxWidth) {
             return value;
         }
@@ -639,7 +633,7 @@ public final class MenuRenderer {
     }
 
     private void drawWrapped(Render2D r, String text, float x, float y, float maxWidth,
-                             io.github.humbleui.skija.Font font, int color, int maxLines, float lineHeight) {
+                             UiFont font, int color, int maxLines, float lineHeight) {
         StringBuilder line = new StringBuilder();
         float cursorY = y;
         int drawn = 0;

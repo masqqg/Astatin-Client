@@ -1,5 +1,6 @@
 package dev.astatin.title;
 
+import dev.astatin.AstatinOverlay;
 import dev.astatin.render.Render2D;
 import dev.astatin.util.FrameClock;
 import net.minecraft.client.Minecraft;
@@ -23,6 +24,7 @@ public final class AstatinTitleScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        AstatinOverlay.renderFallbackScreen(this, guiGraphics, FrameClock.delta());
     }
 
     @Override

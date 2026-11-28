@@ -1,71 +1,38 @@
 package dev.astatin.render;
 
-import dev.astatin.theme.Fonts;
 import dev.astatin.theme.Theme;
-import io.github.humbleui.skija.Canvas;
-import io.github.humbleui.skija.FilterTileMode;
-import io.github.humbleui.skija.Font;
-import io.github.humbleui.skija.Image;
-import io.github.humbleui.skija.ImageFilter;
-import io.github.humbleui.skija.Paint;
-import io.github.humbleui.skija.PaintMode;
-import io.github.humbleui.skija.PaintStrokeCap;
-import io.github.humbleui.skija.PaintStrokeJoin;
-import io.github.humbleui.skija.SamplingMode;
-import io.github.humbleui.skija.Shader;
-import io.github.humbleui.types.RRect;
-import io.github.humbleui.types.Rect;
 
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * The single drawing surface used by the HUD, the menus and the title screen.
- * Every primitive is designed to be cheap enough to run at frame rate: paints
- * and fonts are reused, gradients and blur filters are cached, and only a handful
- * of native objects are created on a normal frame.
+ * It owns the client's visual language (glass panels, bars, tracked labels) and
+ * forwards every primitive to a {@link UiBackend}, so the exact same layout runs
+ * on Skija and on Minecraft's own renderer.
+ *
+ * Paints, fonts and measurements are reused, and only a handful of objects are
+ * created on a normal frame.
  */
 public final class Render2D {
-    private final Canvas canvas;
-
-    private final Paint fill = new Paint().setAntiAlias(true);
-    private final Paint stroke = new Paint().setAntiAlias(true).setStroke(true);
-    private final Paint textPaint = new Paint().setAntiAlias(true);
-    private final Paint imagePaint = new Paint().setAntiAlias(true);
-
-    private final Map<String, Shader> shaders = new LinkedHashMap<>();
-    private final Map<Float, ImageFilter> blurFilters = new HashMap<>();
-    private final Map<String, Image> images = new HashMap<>();
-    private final IdentityHashMap<Font, Map<String, Float>> measurements = new IdentityHashMap<>();
+    private final UiBackend backend;
+    private final IdentityHashMap<UiFont, Map<String, Float>> measurements = new IdentityHashMap<>();
 
     private float width;
     private float height;
 
-    public Render2D(Canvas canvas) {
-        this.canvas = canvas;
-        stroke.setStrokeCap(PaintStrokeCap.ROUND).setStrokeJoin(PaintStrokeJoin.ROUND);
+    public Render2D(UiBackend backend) {
+        this.backend = backend;
     }
 
-    public Canvas canvas() {
-        return canvas;
+    public UiBackend backend() {
+        return backend;
     }
 
     public void beginFrame(float width, float height) {
         this.width = width;
         this.height = height;
-        if (shaders.size() > 600) {
-            fill.setShader(null);
-            stroke.setShader(null);
-            textPaint.setShader(null);
-            imagePaint.setShader(null);
-            for (Shader shader : shaders.values()) {
-                shader.close();
-            }
-            shaders.clear();
-        }
         for (Map<String, Float> values : measurements.values()) {
             if (values.size() > 800) {
                 values.clear();
@@ -74,35 +41,11 @@ public final class Render2D {
     }
 
     public void endFrame() {
-        fill.setShader(null).setImageFilter(null).setAlpha(255);
-        stroke.setShader(null).setImageFilter(null).setAlpha(255);
-        textPaint.setShader(null).setImageFilter(null).setAlpha(255);
-        imagePaint.setShader(null).setImageFilter(null).setAlpha(255);
+        // Backends restore their own state in end()/close().
     }
 
-    /**
-     * Releases every cached native object. Called when the surface that owns
-     * this renderer is replaced, otherwise each window resize would leak Skia
-     * memory until the driver runs out of it.
-     */
     public void close() {
-        for (Shader shader : shaders.values()) {
-            shader.close();
-        }
-        shaders.clear();
-        for (ImageFilter filter : blurFilters.values()) {
-            filter.close();
-        }
-        blurFilters.clear();
-        for (Image image : images.values()) {
-            image.close();
-        }
-        images.clear();
-        measurements.clear();
-        fill.close();
-        stroke.close();
-        textPaint.close();
-        imagePaint.close();
+        backend.close();
     }
 
     public float width() {
@@ -116,126 +59,89 @@ public final class Render2D {
     // ---------------------------------------------------------------- state
 
     public void save() {
-        canvas.save();
+        backend.save();
     }
 
     public void restore() {
-        canvas.restore();
+        backend.restore();
     }
 
     public void translate(float x, float y) {
-        canvas.translate(x, y);
+        backend.translate(x, y);
     }
 
     public void scale(float sx, float sy) {
-        canvas.scale(sx, sy);
+        backend.scale(sx, sy);
     }
 
     public void clipRect(float l, float t, float r, float b) {
-        canvas.clipRect(Rect.makeLTRB(l, t, r, b));
+        backend.clipRect(l, t, r, b);
     }
 
     public void clipRoundRect(float l, float t, float r, float b, float radius) {
-        canvas.clipRRect(RRect.makeLTRB(l, t, r, b, radius));
+        backend.clipRoundRect(l, t, r, b, radius);
+    }
+
+    /**
+     * Groups everything drawn until {@link #popLayer()} behind one opacity, used
+     * for the menu's open and inspector animations.
+     */
+    public void pushLayer(float alpha) {
+        backend.pushAlpha(alpha, 0f, 0f, width, height);
+    }
+
+    public void popLayer() {
+        backend.popAlpha();
     }
 
     // ----------------------------------------------------------- primitives
 
     public void rect(float l, float t, float r, float b, int color) {
-        fill.setShader(null).setImageFilter(null).setColor(color);
-        canvas.drawRect(Rect.makeLTRB(l, t, r, b), fill);
+        backend.rect(l, t, r, b, color);
     }
 
     public void roundRect(float l, float t, float r, float b, float radius, int color) {
-        if (r - l <= 0.01f || b - t <= 0.01f) {
-            return;
-        }
-        fill.setShader(null).setImageFilter(null).setColor(color);
-        canvas.drawRRect(RRect.makeLTRB(l, t, r, b, radius), fill);
+        backend.roundRect(l, t, r, b, radius, color);
     }
 
     public void roundRectStroke(float l, float t, float r, float b, float radius, float lineWidth, int color) {
-        if (r - l <= 0.01f || b - t <= 0.01f) {
-            return;
-        }
-        stroke.setShader(null).setImageFilter(null).setColor(color).setStrokeWidth(lineWidth);
-        canvas.drawRRect(RRect.makeLTRB(l, t, r, b, radius), stroke);
+        backend.roundRectStroke(l, t, r, b, radius, lineWidth, color);
     }
 
     public void line(float x1, float y1, float x2, float y2, float lineWidth, int color) {
-        stroke.setShader(null).setImageFilter(null).setColor(color).setStrokeWidth(lineWidth);
-        canvas.drawLine(x1, y1, x2, y2, stroke);
+        backend.line(x1, y1, x2, y2, lineWidth, color);
     }
 
     public void circle(float cx, float cy, float radius, int color) {
-        fill.setShader(null).setImageFilter(null).setColor(color);
-        canvas.drawCircle(cx, cy, radius, fill);
+        backend.circle(cx, cy, radius, color);
     }
 
     public void circleStroke(float cx, float cy, float radius, float lineWidth, int color) {
-        stroke.setShader(null).setImageFilter(null).setColor(color).setStrokeWidth(lineWidth);
-        canvas.drawCircle(cx, cy, radius, stroke);
+        backend.circleStroke(cx, cy, radius, lineWidth, color);
     }
 
     public void oval(float l, float t, float r, float b, int color) {
-        fill.setShader(null).setImageFilter(null).setColor(color);
-        canvas.drawOval(Rect.makeLTRB(l, t, r, b), fill);
+        backend.oval(l, t, r, b, color);
     }
 
     public void ovalStroke(float l, float t, float r, float b, float lineWidth, int color) {
-        stroke.setShader(null).setImageFilter(null).setColor(color).setStrokeWidth(lineWidth);
-        canvas.drawOval(Rect.makeLTRB(l, t, r, b), stroke);
+        backend.ovalStroke(l, t, r, b, lineWidth, color);
     }
 
     public void arc(float cx, float cy, float radius, float start, float sweep, boolean pie, float lineWidth, int color) {
-        stroke.setShader(null).setImageFilter(null).setColor(color).setStrokeWidth(lineWidth);
-        canvas.drawArc(cx - radius, cy - radius, cx + radius, cy + radius, start, sweep, pie, stroke);
+        backend.arc(cx, cy, radius, start, sweep, pie, lineWidth, color);
     }
 
     public void gradientRect(float l, float t, float r, float b, float radius, int top, int bottom) {
-        Shader shader = linear("g:" + key(l, t, r, b, radius) + top + ":" + bottom,
-                l, t, l, b, new int[]{top, bottom});
-        fill.setImageFilter(null).setShader(shader).setColor(0xFFFFFFFF);
-        canvas.drawRRect(RRect.makeLTRB(l, t, r, b, radius), fill);
+        backend.linearGradient(l, t, r, b, radius, l, t, l, b, top, bottom);
     }
 
     public void gradientRectHorizontal(float l, float t, float r, float b, float radius, int left, int right) {
-        Shader shader = linear("gh:" + key(l, t, r, b, radius) + left + ":" + right,
-                l, t, r, t, new int[]{left, right});
-        fill.setImageFilter(null).setShader(shader).setColor(0xFFFFFFFF);
-        canvas.drawRRect(RRect.makeLTRB(l, t, r, b, radius), fill);
+        backend.linearGradient(l, t, r, b, radius, l, t, r, t, left, right);
     }
 
     public void radialGlow(float cx, float cy, float radius, int center, int edge) {
-        Shader shader = radial("r:" + key(cx, cy, radius) + center + ":" + edge, cx, cy, radius, new int[]{center, edge});
-        fill.setImageFilter(null).setShader(shader).setColor(0xFFFFFFFF);
-        canvas.drawRect(Rect.makeLTRB(cx - radius, cy - radius, cx + radius, cy + radius), fill);
-    }
-
-    private Shader linear(String key, float x0, float y0, float x1, float y1, int[] colors) {
-        Shader cached = shaders.get(key);
-        if (cached == null) {
-            cached = Shader.makeLinearGradient(x0, y0, x1, y1, colors);
-            shaders.put(key, cached);
-        }
-        return cached;
-    }
-
-    private Shader radial(String key, float cx, float cy, float radius, int[] colors) {
-        Shader cached = shaders.get(key);
-        if (cached == null) {
-            cached = Shader.makeRadialGradient(cx, cy, radius, colors);
-            shaders.put(key, cached);
-        }
-        return cached;
-    }
-
-    private static String key(float... values) {
-        StringBuilder builder = new StringBuilder(values.length * 7);
-        for (float value : values) {
-            builder.append((int) (value * 10f)).append('.');
-        }
-        return builder.toString();
+        backend.radialGradient(cx, cy, radius, center, edge);
     }
 
     /** Expands a rounded rect with a gaussian shadow. */
@@ -243,11 +149,7 @@ public final class Render2D {
         if (((color >>> 24) & 0xFF) == 0) {
             return;
         }
-        ImageFilter filter = blurFilters.computeIfAbsent(Math.max(1f, sigma),
-                s -> ImageFilter.makeBlur(s, s, FilterTileMode.DECAL));
-        fill.setShader(null).setColor(color).setImageFilter(filter);
-        canvas.drawRRect(RRect.makeLTRB(l, t, r, b, radius), fill);
-        fill.setImageFilter(null);
+        backend.shadow(l, t, r, b, radius, Math.max(1f, sigma), color);
     }
 
     // ---------------------------------------------------------------- glass
@@ -298,40 +200,39 @@ public final class Render2D {
 
     // ---------------------------------------------------------------- text
 
-    public void text(String value, float x, float baselineY, Font font, int color) {
-        textPaint.setShader(null).setImageFilter(null).setColor(color);
-        canvas.drawString(value, x, baselineY, font, textPaint);
+    public void text(String value, float x, float baselineY, UiFont font, int color) {
+        backend.text(value, x, baselineY, font, color);
     }
 
-    public void textTop(String value, float x, float topY, Font font, int color) {
-        float baseline = topY - font.getMetrics().getAscent();
+    public void textTop(String value, float x, float topY, UiFont font, int color) {
+        float baseline = topY - font.ascent();
         text(value, x, baseline, font, color);
     }
 
-    public void textCenterY(String value, float x, float centerY, Font font, int color) {
-        float baseline = centerY - (font.getMetrics().getAscent() + font.getMetrics().getDescent()) * 0.5f;
+    public void textCenterY(String value, float x, float centerY, UiFont font, int color) {
+        float baseline = centerY - (font.ascent() + font.descent()) * 0.5f;
         text(value, x, baseline, font, color);
     }
 
-    public void textCentered(String value, float centerX, float baselineY, Font font, int color) {
+    public void textCentered(String value, float centerX, float baselineY, UiFont font, int color) {
         text(value, centerX - width(value, font) * 0.5f, baselineY, font, color);
     }
 
-    public void textCenteredTop(String value, float centerX, float topY, Font font, int color) {
-        text(value, centerX - width(value, font) * 0.5f, topY - font.getMetrics().getAscent(), font, color);
+    public void textCenteredTop(String value, float centerX, float topY, UiFont font, int color) {
+        text(value, centerX - width(value, font) * 0.5f, topY - font.ascent(), font, color);
     }
 
-    public void textRight(String value, float rightX, float baselineY, Font font, int color) {
+    public void textRight(String value, float rightX, float baselineY, UiFont font, int color) {
         text(value, rightX - width(value, font), baselineY, font, color);
     }
 
-    public void textCenterYRight(String value, float rightX, float centerY, Font font, int color) {
-        float baseline = centerY - (font.getMetrics().getAscent() + font.getMetrics().getDescent()) * 0.5f;
+    public void textCenterYRight(String value, float rightX, float centerY, UiFont font, int color) {
+        float baseline = centerY - (font.ascent() + font.descent()) * 0.5f;
         text(value, rightX - width(value, font), baseline, font, color);
     }
 
     /** Letter-spaced upper-case micro labels. */
-    public void textTracked(String value, float x, float baselineY, Font font, int color, float tracking) {
+    public void textTracked(String value, float x, float baselineY, UiFont font, int color, float tracking) {
         float cursor = x;
         for (int i = 0; i < value.length(); i++) {
             String ch = String.valueOf(value.charAt(i));
@@ -340,7 +241,7 @@ public final class Render2D {
         }
     }
 
-    public float trackedWidth(String value, Font font, float tracking) {
+    public float trackedWidth(String value, UiFont font, float tracking) {
         float result = 0f;
         for (int i = 0; i < value.length(); i++) {
             result += width(String.valueOf(value.charAt(i)), font) + tracking;
@@ -348,67 +249,59 @@ public final class Render2D {
         return result;
     }
 
-    public float width(String value, Font font) {
+    public float width(String value, UiFont font) {
+        if (value == null || value.isEmpty()) {
+            return 0f;
+        }
         return measurements.computeIfAbsent(font, f -> new HashMap<>())
-                .computeIfAbsent(value, v -> font.measureTextWidth(v));
+                .computeIfAbsent(value, font::measureWidth);
     }
 
-    public float lineHeight(Font font) {
-        return font.getMetrics().getHeight();
+    public float lineHeight(UiFont font) {
+        return font.height();
     }
 
     // --------------------------------------------------------------- images
 
-    public Image image(String resourcePath) {
-        return images.computeIfAbsent(resourcePath, path -> {
-            try (InputStream in = Render2D.class.getResourceAsStream(path)) {
-                if (in == null) {
-                    throw new IllegalStateException("Missing image " + path);
-                }
-                Image image = Image.makeFromEncoded(in.readAllBytes());
-                if (image == null) {
-                    throw new IllegalStateException("Could not decode image " + path);
-                }
-                return image;
-            } catch (Exception e) {
-                throw new IllegalStateException("Could not load image " + path, e);
-            }
-        });
-    }
-
     public void image(String resourcePath, float l, float t, float r, float b) {
-        Image image = image(resourcePath);
-        imagePaint.setShader(null).setImageFilter(null).setColor(0xFFFFFFFF);
-        canvas.drawImageRect(image, Rect.makeLTRB(l, t, r, b), imagePaint);
+        backend.image(resourcePath, l, t, r, b, 0f, 0f, 1f, 1f);
     }
 
     /** Draws an image contained (not cropped) inside the rect, centred. */
     public void imageFit(String resourcePath, float l, float t, float r, float b) {
-        Image image = image(resourcePath);
+        float srcW = backend.imageWidth(resourcePath);
+        float srcH = backend.imageHeight(resourcePath);
+        if (srcW <= 0f || srcH <= 0f) {
+            return;
+        }
         float dstW = r - l;
         float dstH = b - t;
-        float scale = Math.min(dstW / image.getWidth(), dstH / image.getHeight());
-        float drawW = image.getWidth() * scale;
-        float drawH = image.getHeight() * scale;
+        float scale = Math.min(dstW / srcW, dstH / srcH);
+        float drawW = srcW * scale;
+        float drawH = srcH * scale;
         float x = l + (dstW - drawW) * 0.5f;
         float y = t + (dstH - drawH) * 0.5f;
-        image(resourcePath, x, y, x + drawW, y + drawH);
+        backend.image(resourcePath, x, y, x + drawW, y + drawH, 0f, 0f, 1f, 1f);
     }
 
     public void imageCover(String resourcePath, float l, float t, float r, float b) {
-        Image image = image(resourcePath);
+        float srcW = backend.imageWidth(resourcePath);
+        float srcH = backend.imageHeight(resourcePath);
+        if (srcW <= 0f || srcH <= 0f) {
+            return;
+        }
         float dstW = r - l;
         float dstH = b - t;
-        float srcW = image.getWidth();
-        float srcH = image.getHeight();
+        if (dstW <= 0f || dstH <= 0f) {
+            return;
+        }
         float scale = Math.max(dstW / srcW, dstH / srcH);
         float cropW = dstW / scale;
         float cropH = dstH / scale;
         float cropX = (srcW - cropW) * 0.5f;
         float cropY = (srcH - cropH) * 0.5f;
-        imagePaint.setShader(null).setImageFilter(null).setColor(0xFFFFFFFF);
-        canvas.drawImageRect(image, Rect.makeLTRB(cropX, cropY, cropX + cropW, cropY + cropH),
-                Rect.makeLTRB(l, t, r, b), SamplingMode.MITCHELL, imagePaint, true);
+        backend.image(resourcePath, l, t, r, b,
+                cropX / srcW, cropY / srcH, (cropX + cropW) / srcW, (cropY + cropH) / srcH);
     }
 
     // ----------------------------------------------------------------- bars
@@ -434,17 +327,5 @@ public final class Render2D {
             gradientRectHorizontal(l, t, end, b, Math.min(radius, (end - l) * 0.5f),
                     Theme.accentLight(0.25f), Theme.accentDark(0.1f));
         }
-    }
-
-    // --------------------------------------------------------------- helpers
-
-    public Fonts.Weight weightFor(String name) {
-        return switch (name) {
-            case "medium" -> Fonts.Weight.MEDIUM;
-            case "semibold" -> Fonts.Weight.SEMIBOLD;
-            case "bold" -> Fonts.Weight.BOLD;
-            case "italic" -> Fonts.Weight.ITALIC;
-            default -> Fonts.Weight.REGULAR;
-        };
     }
 }

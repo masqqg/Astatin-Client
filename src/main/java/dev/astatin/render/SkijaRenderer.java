@@ -30,7 +30,7 @@ import java.nio.IntBuffer;
  * with premultiplied alpha, and every GL state touched here is restored so the
  * 1.21 render pipeline keeps its own cached state intact.
  */
-public final class SkijaRenderer {
+public final class SkijaRenderer implements UiSurface {
     private static final Logger LOGGER = LoggerFactory.getLogger("astatin/render");
 
     private DirectContext context;
@@ -84,6 +84,7 @@ public final class SkijaRenderer {
     private boolean savedDepthMask;
     private boolean[] savedColorMask = new boolean[4];
 
+    @Override
     public boolean begin(int framebufferWidth, int framebufferHeight, float guiScale, int guiWidth, int guiHeight) {
         if (disabled || !RenderSystem.isOnRenderThread()) {
             return false;
@@ -120,10 +121,12 @@ public final class SkijaRenderer {
         }
     }
 
+    @Override
     public Render2D ui() {
         return ui;
     }
 
+    @Override
     public void end() {
         if (!active || disabled) {
             return;
@@ -223,7 +226,7 @@ public final class SkijaRenderer {
         target = BackendRenderTarget.makeGL(w, h, 0, 8, fbo, GL11C.GL_RGBA8);
         surface = Surface.wrapBackendRenderTarget(context, target, SurfaceOrigin.BOTTOM_LEFT,
                 ColorType.RGBA_8888, ColorSpace.getSRGB());
-        ui = new Render2D(surface.getCanvas());
+        ui = new Render2D(new SkiaBackend(surface.getCanvas()));
         ensureShader();
         GL30C.glBindFramebuffer(GL30C.GL_FRAMEBUFFER, 0);
     }
@@ -403,6 +406,7 @@ public final class SkijaRenderer {
     }
 
     /** Frees every native and GL object. Safe to call when the client stops. */
+    @Override
     public void close() {
         if (active) {
             return;
@@ -461,6 +465,7 @@ public final class SkijaRenderer {
         }
     }
 
+    @Override
     public boolean isDisabled() {
         return disabled;
     }

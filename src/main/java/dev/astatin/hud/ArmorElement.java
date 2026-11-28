@@ -1,6 +1,7 @@
 package dev.astatin.hud;
 
 import dev.astatin.render.Render2D;
+import dev.astatin.render.UiFont;
 import dev.astatin.theme.Fonts;
 import dev.astatin.theme.Theme;
 
@@ -62,7 +63,7 @@ public final class ArmorElement extends HudElement {
         }
     }
 
-    private String trim(Render2D r, String value, io.github.humbleui.skija.Font font, float maxWidth) {
+    private String trim(Render2D r, String value, UiFont font, float maxWidth) {
         if (r.width(value, font) <= maxWidth) {
             return value;
         }

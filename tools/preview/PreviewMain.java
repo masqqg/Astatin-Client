@@ -9,6 +9,7 @@ import dev.astatin.modules.Category;
 import dev.astatin.modules.Module;
 import dev.astatin.modules.Modules;
 import dev.astatin.render.Render2D;
+import dev.astatin.render.SkiaBackend;
 import dev.astatin.theme.Theme;
 import dev.astatin.title.TitleRenderer;
 import dev.astatin.title.TitleState;
@@ -65,7 +66,7 @@ public final class PreviewMain {
         Surface surface = surface();
         Canvas canvas = surface.getCanvas();
         canvas.scale(2f, 2f);
-        Render2D r = new Render2D(canvas);
+        Render2D r = new Render2D(new SkiaBackend(canvas));
         r.beginFrame(GUI_W, GUI_H);
 
         background(r, "/assets/astatin/textures/gui/scene.jpg");
@@ -89,7 +90,7 @@ public final class PreviewMain {
         Surface surface = surface();
         Canvas canvas = surface.getCanvas();
         canvas.scale(2f, 2f);
-        Render2D r = new Render2D(canvas);
+        Render2D r = new Render2D(new SkiaBackend(canvas));
         r.beginFrame(GUI_W, GUI_H);
 
         background(r, "/assets/astatin/textures/gui/scene.jpg");
@@ -132,7 +133,7 @@ public final class PreviewMain {
         Surface surface = surface();
         Canvas canvas = surface.getCanvas();
         canvas.scale(2f, 2f);
-        Render2D r = new Render2D(canvas);
+        Render2D r = new Render2D(new SkiaBackend(canvas));
         r.beginFrame(GUI_W, GUI_H);
 
         TitleRenderer renderer = new TitleRenderer();

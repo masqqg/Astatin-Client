@@ -1,6 +1,7 @@
 package dev.astatin.menu;
 
 import dev.astatin.AstatinClient;
+import dev.astatin.AstatinOverlay;
 import dev.astatin.modules.Category;
 import dev.astatin.modules.Module;
 import dev.astatin.modules.Modules;
@@ -8,6 +9,7 @@ import dev.astatin.modules.Setting;
 import dev.astatin.render.Render2D;
 import dev.astatin.theme.ColorUtil;
 import dev.astatin.theme.Theme;
+import dev.astatin.util.FrameClock;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -35,7 +37,9 @@ public final class AstatinClickGuiScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        // Skija paints the whole screen after Minecraft has finished its frame.
+        // Skija paints the whole screen after Minecraft has finished its frame;
+        // without it the exact same layout is drawn through GuiGraphics here.
+        AstatinOverlay.renderFallbackScreen(this, guiGraphics, FrameClock.delta());
     }
 
     @Override

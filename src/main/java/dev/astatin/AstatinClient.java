@@ -11,7 +11,10 @@ import dev.astatin.menu.HudEditorScreen;
 import dev.astatin.modules.Module;
 import dev.astatin.modules.Modules;
 import dev.astatin.modules.ZoomState;
+import dev.astatin.render.Render2D;
 import dev.astatin.render.SkijaRenderer;
+import dev.astatin.render.UiSurface;
+import dev.astatin.render.VanillaBackend;
 import dev.astatin.theme.Fonts;
 import dev.astatin.title.AstatinTitleScreen;
 import dev.astatin.theme.Theme;
@@ -21,6 +24,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
@@ -33,7 +37,9 @@ public final class AstatinClient implements ClientModInitializer {
 
     private static final HudData HUD_DATA = new HudData();
     private static final ZoomState ZOOM = new ZoomState();
-    private static final SkijaRenderer RENDERER = new SkijaRenderer();
+    /** Created lazily: referencing Skija types at class-init would fail on Android. */
+    private static UiSurface surface;
+    private static boolean surfaceTried;
 
     private static ConfigData config = new ConfigData();
     private static HudManager hud;
@@ -55,8 +61,9 @@ public final class AstatinClient implements ClientModInitializer {
         try {
             Fonts.load();
             fontsLoaded = true;
+            LOGGER.info("Interface typography: {}", Fonts.source());
         } catch (Throwable t) {
-            LOGGER.error("Could not load the bundled interface font", t);
+            LOGGER.error("Could not load any interface font", t);
         }
 
         config = ConfigManager.load();
@@ -80,7 +87,10 @@ public final class AstatinClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick(client));
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             persist();
-            RENDERER.close();
+            UiSurface renderer = renderer();
+            if (renderer != null) {
+                renderer.close();
+            }
         });
         reloadHudDefaults();
         ready = true;
@@ -208,9 +218,26 @@ public final class AstatinClient implements ClientModInitializer {
         return ready && fontsLoaded;
     }
 
-    /** True when the custom interface can actually be drawn. */
+    /**
+     * True when the custom interface can be drawn. Both renderers qualify: the
+     * Skija one when its native library loads and Minecraft's own renderer
+     * otherwise, which is what keeps the HUD and menu working on Android.
+     */
     public static boolean uiAvailable() {
-        return ready() && !RENDERER.isDisabled();
+        return ready();
+    }
+
+    /** True only while the Skija surface is the one doing the drawing. */
+    public static boolean skijaActive() {
+        UiSurface renderer = renderer();
+        return renderer != null && !renderer.isDisabled();
+    }
+
+    /** Starts a frame that draws through Minecraft's GuiGraphics. */
+    public static Render2D beginVanilla(GuiGraphics guiGraphics) {
+        Render2D ui = new Render2D(new VanillaBackend(guiGraphics));
+        ui.beginFrame(guiGraphics.guiWidth(), guiGraphics.guiHeight());
+        return ui;
     }
 
     public static ConfigData config() {
@@ -233,8 +260,28 @@ public final class AstatinClient implements ClientModInitializer {
         return ZOOM;
     }
 
-    public static SkijaRenderer renderer() {
-        return RENDERER;
+    /**
+     * The Skija surface, or null when it cannot exist on this platform. The
+     * construction is wrapped because a missing native shows up as an Error.
+     */
+    public static UiSurface renderer() {
+        if (!surfaceTried) {
+            surfaceTried = true;
+            // Lets the Minecraft fallback be exercised on a desktop JVM, e.g.
+            // -Dastatin.vanilla=true, without pulling the native library out.
+            if (Boolean.getBoolean("astatin.vanilla")) {
+                LOGGER.info("Astatin renderer disabled on request; using Minecraft's own renderer");
+                return null;
+            }
+            try {
+                surface = new SkijaRenderer();
+            } catch (Throwable t) {
+                surface = null;
+                LOGGER.warn("Skija is unavailable ({} / {}); using Minecraft's renderer instead",
+                        System.getProperty("os.name"), System.getProperty("os.arch"));
+            }
+        }
+        return surface;
     }
 
     public static boolean fullbright() {
